@@ -14,13 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      comanda_items: {
+        Row: {
+          cantidad: number
+          comanda_id: string
+          estacion: string
+          id: string
+          modificadores: Json
+          nombre: string
+          notas: string | null
+          precio_unitario: number
+          producto_id: string
+        }
+        Insert: {
+          cantidad?: number
+          comanda_id: string
+          estacion?: string
+          id?: string
+          modificadores?: Json
+          nombre: string
+          notas?: string | null
+          precio_unitario: number
+          producto_id: string
+        }
+        Update: {
+          cantidad?: number
+          comanda_id?: string
+          estacion?: string
+          id?: string
+          modificadores?: Json
+          nombre?: string
+          notas?: string | null
+          precio_unitario?: number
+          producto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comanda_items_comanda_id_fkey"
+            columns: ["comanda_id"]
+            isOneToOne: false
+            referencedRelation: "comandas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comandas: {
+        Row: {
+          client_token: string
+          created_at: string
+          cuenta_id: string
+          estado: string
+          id: string
+          mesa_id: string
+          mesero: string | null
+          numero: number
+        }
+        Insert: {
+          client_token: string
+          created_at?: string
+          cuenta_id: string
+          estado?: string
+          id?: string
+          mesa_id: string
+          mesero?: string | null
+          numero?: number
+        }
+        Update: {
+          client_token?: string
+          created_at?: string
+          cuenta_id?: string
+          estado?: string
+          id?: string
+          mesa_id?: string
+          mesero?: string | null
+          numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comandas_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comandas_mesa_id_fkey"
+            columns: ["mesa_id"]
+            isOneToOne: false
+            referencedRelation: "mesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuentas: {
+        Row: {
+          abierta_at: string
+          cerrada_at: string | null
+          estado: string
+          fecha_operativa: string | null
+          id: string
+          mesa_id: string
+          metodo_pago: string | null
+          motivo_anulacion: string | null
+          total: number | null
+        }
+        Insert: {
+          abierta_at?: string
+          cerrada_at?: string | null
+          estado?: string
+          fecha_operativa?: string | null
+          id?: string
+          mesa_id: string
+          metodo_pago?: string | null
+          motivo_anulacion?: string | null
+          total?: number | null
+        }
+        Update: {
+          abierta_at?: string
+          cerrada_at?: string | null
+          estado?: string
+          fecha_operativa?: string | null
+          id?: string
+          mesa_id?: string
+          metodo_pago?: string | null
+          motivo_anulacion?: string | null
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuentas_mesa_id_fkey"
+            columns: ["mesa_id"]
+            isOneToOne: false
+            referencedRelation: "mesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mesas: {
+        Row: {
+          created_at: string
+          estado: string
+          id: string
+          nombre: string
+          orden: number
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          id?: string
+          nombre: string
+          orden?: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          orden?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      anular_cuenta: {
+        Args: { p_cuenta: string; p_motivo: string }
+        Returns: undefined
+      }
+      cobrar_cuenta: {
+        Args: { p_cuenta: string; p_metodo: string }
+        Returns: number
+      }
+      enviar_comanda: {
+        Args: {
+          p_items: Json
+          p_mesa: string
+          p_mesero?: string
+          p_token: string
+        }
+        Returns: string
+      }
+      solicitar_cuenta: { Args: { p_cuenta: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
