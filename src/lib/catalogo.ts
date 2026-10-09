@@ -52,7 +52,7 @@ export const PRODUCTOS: Producto[] = [
   fijo("charros-sencillos", "Charros sencillos", "Papas y Frijoles", 55),
   platillo("torta", "Torta", "Tortas", 130),
   fijo("hamburguesa", "Hamburguesa", "Tortas", 125),
-  fijo("quasagloria", "Quasagloria", "Postres y Bebidas", 100),
+  fijo("quesagloria", "Quesagloria", "Postres y Bebidas", 100),
   fijo("agua-natural", "Agua natural", "Postres y Bebidas", 15, "barra"),
   fijo("agua-sabor", "Agua de sabor 1 L", "Postres y Bebidas", 45, "barra"),
   fijo("horchata", "Agua de horchata y cebada 1 L", "Postres y Bebidas", 50, "barra"),
