@@ -1,24 +1,39 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChefHat, ClipboardList, Wallet } from "lucide-react";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Smart Restaurant Pro — Tacos el Faro" },
+      { name: "description", content: "Elige tu estación: Mesero, Cocina o Caja." },
+      { property: "og:title", content: "Smart Restaurant Pro — Tacos el Faro" },
+      { property: "og:description", content: "Elige tu estación: Mesero, Cocina o Caja." },
+    ],
+  }),
+  component: Inicio,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+const roles = [
+  { to: "/mesero", titulo: "Mesero", desc: "Toma de comandas desde el celular", Icon: ClipboardList },
+  { to: "/cocina", titulo: "Cocina", desc: "Pantalla de comandas en tiempo real", Icon: ChefHat },
+  { to: "/caja", titulo: "Caja", desc: "Cuentas, cobro y corte del día", Icon: Wallet },
+] as const;
+
+function Inicio() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+      <p className="text-sm tracking-[0.3em] uppercase text-primary">Smart Restaurant Pro</p>
+      <h1 className="font-display text-7xl md:text-8xl leading-none mt-2">Tacos el Faro</h1>
+      <p className="text-muted-foreground mt-2">Carne asada · Monterrey</p>
+      <div className="grid gap-4 w-full max-w-3xl mt-10 md:grid-cols-3">
+        {roles.map(({ to, titulo, desc, Icon }) => (
+          <Link key={to} to={to} className="group rounded-2xl border bg-card p-6 hover:border-primary transition-colors">
+            <Icon className="size-10 text-primary" />
+            <h2 className="font-display text-4xl mt-4">{titulo}</h2>
+            <p className="text-sm text-muted-foreground">{desc}</p>
+          </Link>
+        ))}
+      </div>
+    </main>
   );
 }
