@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CajaRouteImport } from './routes/caja'
+import { Route as CocinaRouteImport } from './routes/cocina'
+import { Route as MeseroRouteImport } from './routes/mesero'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CajaRoute = CajaRouteImport.update({
+  id: '/caja',
+  path: '/caja',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CocinaRoute = CocinaRouteImport.update({
+  id: '/cocina',
+  path: '/cocina',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeseroRoute = MeseroRouteImport.update({
+  id: '/mesero',
+  path: '/mesero',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/caja': typeof CajaRoute
+  '/cocina': typeof CocinaRoute
+  '/mesero': typeof MeseroRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/caja': typeof CajaRoute
+  '/cocina': typeof CocinaRoute
+  '/mesero': typeof MeseroRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/caja': typeof CajaRoute
+  '/cocina': typeof CocinaRoute
+  '/mesero': typeof MeseroRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/caja' | '/cocina' | '/mesero'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/caja' | '/cocina' | '/mesero'
+  id: '__root__' | '/' | '/caja' | '/cocina' | '/mesero'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CajaRoute: typeof CajaRoute
+  CocinaRoute: typeof CocinaRoute
+  MeseroRoute: typeof MeseroRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/caja': {
+      id: '/caja'
+      path: '/caja'
+      fullPath: '/caja'
+      preLoaderRoute: typeof CajaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cocina': {
+      id: '/cocina'
+      path: '/cocina'
+      fullPath: '/cocina'
+      preLoaderRoute: typeof CocinaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mesero': {
+      id: '/mesero'
+      path: '/mesero'
+      fullPath: '/mesero'
+      preLoaderRoute: typeof MeseroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CajaRoute: CajaRoute,
+  CocinaRoute: CocinaRoute,
+  MeseroRoute: MeseroRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
