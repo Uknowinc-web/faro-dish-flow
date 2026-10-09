@@ -39,7 +39,7 @@ describe("gaonera", () => {
 describe("productos fijos", () => {
   it.each([
     ["chilaca", 80, "cocina"], ["hamburguesa", 125, "cocina"], ["papa-sencilla", 130, "cocina"],
-    ["charros-sencillos", 55, "cocina"], ["quasagloria", 100, "cocina"], ["agua-natural", 15, "barra"],
+    ["charros-sencillos", 55, "cocina"], ["quesagloria", 100, "cocina"], ["agua-natural", 15, "barra"],
     ["agua-sabor", 45, "barra"], ["horchata", 50, "barra"], ["topo-chico", 35, "barra"], ["toni-col", 55, "barra"],
   ])("%s cuesta $%i sin variantes", (id, precio, estacion) => {
     expect(p(id).precio).toBe(precio);
