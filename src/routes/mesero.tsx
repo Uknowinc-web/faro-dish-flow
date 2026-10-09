@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/use-realtime";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { CATEGORIAS, NOTAS_RAPIDAS, PRODUCTOS, precioUnitario, horaMty, type ModSeleccionado, type Producto } from "@/lib/catalogo";
+import { CARNES, CATEGORIAS, NOTAS_RAPIDAS, PRODUCTOS, modsMixta, precioUnitario, horaMty, type Carne, type ModSeleccionado, type Producto } from "@/lib/catalogo";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/mesero")({
@@ -195,14 +195,17 @@ function EditorProducto({ producto, onClose, onAdd }: { producto: Producto | nul
   const [notas, setNotas] = useState<string[]>([]);
   const [libre, setLibre] = useState("");
   const [cantidad, setCantidad] = useState(1);
+  const [principal, setPrincipal] = useState<Carne | null>(null);
+  const [extras, setExtras] = useState<Carne[]>([]);
+  const [queso, setQueso] = useState(false);
 
-  const reset = () => { setSel({}); setNotas([]); setLibre(""); setCantidad(1); };
-  const faltan = producto?.grupos?.some((g) => g.requerido && !(sel[g.id]?.length)) ?? false;
+  const reset = () => { setSel({}); setNotas([]); setLibre(""); setCantidad(1); setPrincipal(null); setExtras([]); setQueso(false); };
+  const faltan = (producto?.grupos?.some((g) => g.requerido && !(sel[g.id]?.length)) ?? false) || (!!producto?.mixta && !principal);
 
   function agregar() {
     if (!producto) return;
-    const mods: ModSeleccionado[] = [];
-    producto.grupos?.forEach((g) => g.opciones.forEach((o) => sel[g.id]?.includes(o.id) && mods.push({ grupo: g.id, nombre: o.nombre.replace(/ \(\+\d+\)/, ""), extra: o.extra })));
+    const mods: ModSeleccionado[] = producto.mixta && principal ? modsMixta(producto, principal, extras, queso) : [];
+    producto.grupos?.forEach((g) => g.opciones.forEach((o) => sel[g.id]?.includes(o.id) && mods.push({ grupo: g.id, nombre: o.nombre, extra: o.extra })));
     onAdd({ key: crypto.randomUUID(), producto, cantidad, mods, notas: [...notas, libre.trim()].filter(Boolean).join(", ") });
     reset();
     onClose();
@@ -213,6 +216,33 @@ function EditorProducto({ producto, onClose, onAdd }: { producto: Producto | nul
       <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl">
         <SheetHeader><SheetTitle className="font-display text-3xl">{producto?.nombre}</SheetTitle></SheetHeader>
         <div className="space-y-5 px-4 pb-4">
+          {producto?.mixta && (
+            <>
+              <div>
+                <p className="text-sm font-semibold mb-2">Carne principal *</p>
+                <div className="flex flex-wrap gap-2">
+                  {CARNES.map((c) => (
+                    <Button key={c} variant={principal === c ? "default" : "secondary"} className="h-11 min-w-24"
+                      onClick={() => { setPrincipal(c); setExtras((e) => e.filter((x) => x !== c)); }}>{c}</Button>
+                  ))}
+                </div>
+              </div>
+              {principal && (
+                <div>
+                  <p className="text-sm font-semibold mb-2">Carnes extra</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CARNES.filter((c) => c !== principal).map((c) => (
+                      <Button key={c} variant={extras.includes(c) ? "default" : "secondary"} className="h-11 min-w-24"
+                        onClick={() => setExtras((e) => (e.includes(c) ? e.filter((x) => x !== c) : [...e, c]))}>+ {c}</Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {producto.mixta.queso && (
+                <Button variant={queso ? "default" : "secondary"} className="h-11" onClick={() => setQueso(!queso)}>Con queso</Button>
+              )}
+            </>
+          )}
           {producto?.grupos?.map((g) => (
             <div key={g.id}>
               <p className="text-sm font-semibold mb-2">{g.nombre}{g.requerido && " *"}</p>
@@ -222,7 +252,7 @@ function EditorProducto({ producto, onClose, onAdd }: { producto: Producto | nul
                   return (
                     <Button key={o.id} variant={on ? "default" : "secondary"} className="h-11"
                       onClick={() => setSel((s) => ({ ...s, [g.id]: g.tipo === "uno" ? [o.id] : on ? (s[g.id] ?? []).filter((x) => x !== o.id) : [...(s[g.id] ?? []), o.id] }))}>
-                      {o.nombre.replace(/ \(\+\d+\)/, o.extra ? " extra" : "")}
+                      {o.nombre}
                     </Button>
                   );
                 })}
