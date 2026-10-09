@@ -81,7 +81,7 @@ function Mesero() {
     }));
     const { error } = await supabase.rpc("enviar_comanda", { p_mesa: mesa.id, p_token: token, p_items: items });
     setEnviando(false);
-    if (error) return toast.error("No se pudo enviar: " + error.message);
+    if (error) { toast.error("No se pudo enviar: " + error.message); return; }
     toast.success(`Comanda enviada · ${mesa.nombre}`);
     setLineas([]);
     setToken(crypto.randomUUID());
@@ -221,7 +221,7 @@ function EditorProducto({ producto, onClose, onAdd }: { producto: Producto | nul
                   const on = sel[g.id]?.includes(o.id);
                   return (
                     <Button key={o.id} variant={on ? "default" : "secondary"} className="h-11"
-                      onClick={() => setSel((s) => ({ ...s, [g.id]: g.tipo === "uno" ? [o.id] : on ? s[g.id].filter((x) => x !== o.id) : [...(s[g.id] ?? []), o.id] }))}>
+                      onClick={() => setSel((s) => ({ ...s, [g.id]: g.tipo === "uno" ? [o.id] : on ? (s[g.id] ?? []).filter((x) => x !== o.id) : [...(s[g.id] ?? []), o.id] }))}>
                       {o.nombre.replace(/ \(\+\d+\)/, o.extra ? " extra" : "")}
                     </Button>
                   );

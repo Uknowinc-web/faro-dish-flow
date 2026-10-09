@@ -87,7 +87,7 @@ function Cocina() {
       {q.data?.length === 0 && <p className="text-center text-2xl text-muted-foreground py-24">Sin comandas pendientes 🔥</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {q.data?.map((c) => {
-          const sig = siguiente[c.estado];
+          const sig = siguiente[c.estado] ?? siguiente.preparacion;
           return (
             <article key={c.id} className={cn("rounded-2xl border-4 bg-card flex flex-col", c.estado === "pendiente" ? "border-primary" : "border-warning")}>
               <div className="flex justify-between items-baseline p-4 border-b">

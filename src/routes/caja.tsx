@@ -69,7 +69,7 @@ function Mesas() {
   async function agregarMesa() {
     if (!nueva.trim()) return;
     const { error } = await supabase.from("mesas").insert({ nombre: nueva.trim(), orden: 50 });
-    if (error) return toast.error(error.code === "23505" ? "Ya existe esa mesa" : error.message);
+    if (error) { toast.error(error.code === "23505" ? "Ya existe esa mesa" : error.message); return; }
     setNueva("");
     mesas.refetch();
   }
@@ -118,7 +118,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await supabase.rpc(fn, args as any);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(ok);
     if (fn !== "solicitar_cuenta") onDone();
   }
