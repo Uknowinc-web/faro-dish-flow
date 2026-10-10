@@ -52,7 +52,7 @@ function Admin() {
       </header>
       <Tabs defaultValue="resumen">
         <TabsList className="flex-wrap h-auto">
-          {[["resumen", "Resumen"], ["cuentas", "Cuentas"], ["productos", "Productos"], ["mesas", "Mesas"], ["empleados", "Empleados"], ["turnos", "Turnos"], ["bitacora", "Bitácora"]].map(([v, l]) => (
+          {([["resumen", "Resumen"], ["cuentas", "Cuentas"], ["productos", "Productos"], ["mesas", "Mesas"], ["empleados", "Empleados"], ["turnos", "Turnos"], ["bitacora", "Bitácora"]] as const).map(([v, l]) => (
             <TabsTrigger key={v} value={v}>{l}</TabsTrigger>
           ))}
         </TabsList>
@@ -280,7 +280,7 @@ function Empleados() {
             <span className="flex-1 min-w-32 font-semibold">{e.nombre}</span>
             {selRol(e.rol as Rol, (rol) => guardar({ rol }, "Rol actualizado"))}
             <Input className="w-28" inputMode="numeric" maxLength={6} value={pins[e.id] ?? ""} onChange={(ev) => setPins((s) => ({ ...s, [e.id]: ev.target.value.replace(/\D/g, "") }))} placeholder="Nuevo PIN" />
-            <Button size="sm" disabled={(pins[e.id] ?? "").length < 4} onClick={async () => { if (await guardar({ pin: pins[e.id] }, "PIN cambiado")) setPins((s) => ({ ...s, [e.id]: "" })); }}><Save /></Button>
+            <Button size="sm" disabled={(pins[e.id] ?? "").length < 4} onClick={async () => { if (await guardar({ pin: pins[e.id] ?? "" }, "PIN cambiado")) setPins((s) => ({ ...s, [e.id]: "" })); }}><Save /></Button>
             <Button size="sm" variant="secondary" onClick={() => guardar({ activo: !e.activo }, e.activo ? "Empleado dado de baja" : "Empleado reactivado")}>{e.activo ? "Dar de baja" : "Reactivar"}</Button>
           </div>
         );

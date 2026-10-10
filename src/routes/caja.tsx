@@ -128,7 +128,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(ok);
-    log(ok, fn === "anular_cuenta" ? `${mesa} — ${args.p_motivo}` : `${mesa} · ${mxn(total)}`);
+    log(ok, fn === "anular_cuenta" ? `${mesa} — ${args["p_motivo"]}` : `${mesa} · ${mxn(total)}`);
     if (fn !== "solicitar_cuenta") onDone();
   }
 
