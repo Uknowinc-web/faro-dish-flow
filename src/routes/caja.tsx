@@ -251,8 +251,9 @@ function Corte() {
 
   const kpis = [
     { l: "Total vendido", v: mxn(total) },
-    { l: "Efectivo", v: mxn(porMetodo("efectivo")) },
-    { l: "Clip", v: mxn(porMetodo("clip")) },
+    { l: "Propinas", v: mxn(propinas) },
+    { l: "Efectivo cobrado", v: mxn(porMetodo("efectivo")) },
+    { l: "Clip cobrado", v: mxn(porMetodo("clip")) },
     { l: "Ticket promedio", v: mxn(pagadas.length ? total / pagadas.length : 0) },
     { l: "Cuentas cobradas", v: String(pagadas.length) },
     { l: "Anuladas", v: String(anuladas) },
