@@ -153,13 +153,60 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
         <span className="text-muted-foreground">Total</span>
         <span className="font-display text-5xl text-primary">{mxn(total)}</span>
       </div>
-      <div className="grid grid-cols-2 gap-2 mt-4">
+      <div className="mt-4 space-y-3">
         {estado !== "por_cobrar" && (
-          <Button variant="secondary" className="col-span-2 h-12" disabled={busy} onClick={() => rpc("solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
+          <Button variant="secondary" className="w-full h-12" disabled={busy} onClick={() => rpc("solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
         )}
-        <Button className="h-14" disabled={busy} onClick={() => rpc("cobrar_cuenta", { p_cuenta: cuentaId, p_metodo: "efectivo" }, "Cobrado en efectivo")}><Banknote /> Efectivo</Button>
-        <Button className="h-14 bg-info text-info-foreground hover:bg-info/90" disabled={busy} onClick={() => rpc("cobrar_cuenta", { p_cuenta: cuentaId, p_metodo: "clip" }, "Cobrado con Clip")}><CreditCard /> Clip</Button>
-        <Button variant="ghost" className="col-span-2 text-destructive" onClick={() => setAnular(true)}><XCircle /> Anular cuenta</Button>
+        <div className="rounded-xl border p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground w-24">Propina</label>
+            <Input type="number" min="0" inputMode="decimal" value={propina} onChange={(e) => setPropina(e.target.value)} placeholder="$0" />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground w-24 flex items-center gap-1"><Banknote className="size-4" /> Efectivo</label>
+            <Input type="number" min="0" inputMode="decimal" value={montoEfectivo} onChange={(e) => setMontoEfectivo(e.target.value)} placeholder={String(total + (Number(propina) || 0))} />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground w-24 flex items-center gap-1"><CreditCard className="size-4" /> Clip</label>
+            <Input type="number" min="0" inputMode="decimal" value={montoClip} onChange={(e) => setMontoClip(e.target.value)} placeholder="$0" />
+          </div>
+          {(() => {
+            const r = resumenPago(total, Number(propina) || 0, [
+              { metodo: "efectivo", monto: Number(montoEfectivo) || 0 },
+              { metodo: "clip", monto: Number(montoClip) || 0 },
+            ]);
+            return (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">A cobrar (con propina)</span>
+                  <span className="font-semibold tabular-nums">{mxn(r.objetivo)}</span>
+                </div>
+                {r.falta > 0 && r.suma > 0 && <p className="text-sm text-warning">Faltan {mxn(r.falta)}</p>}
+                {r.cambio > 0 && <p className="text-sm text-info">Cambio: {mxn(r.cambio)}</p>}
+                <Button
+                  className="w-full h-14"
+                  disabled={busy || !r.valido}
+                  onClick={async () => {
+                    setBusy(true);
+                    const pagos = [
+                      { metodo: "efectivo", monto: Number(montoEfectivo) || 0 },
+                      { metodo: "clip", monto: Number(montoClip) || 0 },
+                    ].filter((p) => p.monto > 0);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const { error } = await supabase.rpc("cobrar_cuenta_pagos", { p_cuenta: cuentaId, p_pagos: pagos, p_propina: Number(propina) || 0 } as any);
+                    setBusy(false);
+                    if (error) { toast.error(error.message); return; }
+                    toast.success(r.mixto ? "Cobrado (pago mixto)" : "Cuenta cobrada");
+                    onDone();
+                  }}
+                >
+                  Cobrar {mxn(total + (Number(propina) || 0))}
+                </Button>
+              </>
+            );
+          })()}
+        </div>
+        <Button variant="ghost" className="w-full text-destructive" onClick={() => setAnular(true)}><XCircle /> Anular cuenta</Button>
       </div>
       <Dialog open={anular} onOpenChange={setAnular}>
         <DialogContent>
