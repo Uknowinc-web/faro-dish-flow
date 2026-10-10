@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { hoyMonterrey, horaMty, mxn } from "@/lib/catalogo";
 import { resumenPago } from "@/lib/pagos";
+import { Corte } from "@/components/corte";
+import { PinGate, SesionBar, useBitacora } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/caja")({
@@ -23,7 +25,7 @@ export const Route = createFileRoute("/caja")({
       { property: "og:description", content: "Cuentas activas, cobro y corte de caja diario." },
     ],
   }),
-  component: Caja,
+  component: () => <PinGate estacion="caja" roles={["caja"]}><Caja /></PinGate>,
 });
 
 const estiloMesa: Record<string, string> = {
@@ -38,7 +40,8 @@ function Caja() {
     <main className="min-h-screen p-4 md:p-6">
       <header className="flex items-center gap-3 mb-4">
         <Link to="/" aria-label="Inicio"><ArrowLeft /></Link>
-        <h1 className="font-display text-5xl">Caja</h1>
+        <h1 className="font-display text-5xl flex-1">Caja</h1>
+        <SesionBar />
       </header>
       <Tabs defaultValue="mesas">
         <TabsList><TabsTrigger value="mesas">Mesas activas</TabsTrigger><TabsTrigger value="corte">Corte de caja</TabsTrigger></TabsList>
@@ -56,7 +59,7 @@ function Mesas() {
     queryKey: ["caja-mesas"],
     queryFn: async () => {
       const [{ data: ms }, { data: cs }] = await Promise.all([
-        supabase.from("mesas").select("id,nombre,estado,orden").order("orden").order("nombre"),
+        supabase.from("mesas").select("id,nombre,estado,orden").eq("activo", true).order("orden").order("nombre"),
         supabase.from("cuentas").select("id,mesa_id,comandas(comanda_items(cantidad,precio_unitario))").in("estado", ["abierta", "por_cobrar"]),
       ]);
       return (ms ?? []).map((m) => {
@@ -103,6 +106,7 @@ function Mesas() {
 }
 
 function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: string; estado: string; onDone: () => void }) {
+  const log = useBitacora();
   const [anular, setAnular] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -124,6 +128,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(ok);
+    log(ok, fn === "anular_cuenta" ? `${mesa} — ${args.p_motivo}` : `${mesa} · ${mxn(total)}`);
     if (fn !== "solicitar_cuenta") onDone();
   }
 
@@ -197,6 +202,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
                     setBusy(false);
                     if (error) { toast.error(error.message); return; }
                     toast.success(r.mixto ? "Cobrado (pago mixto)" : "Cuenta cobrada");
+                    log("Cuenta cobrada", `${mesa} · ${mxn(total)}${Number(propina) ? ` + propina ${mxn(Number(propina))}` : ""} · ${pagos.map((p) => `${p.metodo} ${mxn(p.monto)}`).join(", ")}`);
                     onDone();
                   }}
                 >
@@ -222,68 +228,3 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
   );
 }
 
-function Corte() {
-  const [fecha, setFecha] = useState(hoyMonterrey());
-  const q = useQuery({
-    queryKey: ["corte", fecha],
-    queryFn: async () => {
-      const cs = (await supabase.from("cuentas").select("id,estado,metodo_pago,total,propina,comandas(comanda_items(nombre,cantidad,precio_unitario))").eq("fecha_operativa", fecha).in("estado", ["pagada", "anulada"])).data ?? [];
-      const ids = cs.filter((c) => c.estado === "pagada").map((c) => c.id);
-      const ps = ids.length
-        ? (await supabase.from("pagos").select("cuenta_id,metodo,monto").in("cuenta_id", ids)).data ?? []
-        : [];
-      return { cuentas: cs, pagos: ps };
-    },
-  });
-  const cuentas = q.data?.cuentas ?? [];
-  const pagadas = cuentas.filter((c) => c.estado === "pagada");
-  const anuladas = cuentas.length - pagadas.length;
-  const total = pagadas.reduce((s, c) => s + Number(c.total ?? 0), 0);
-  const propinas = pagadas.reduce((s, c) => s + Number(c.propina ?? 0), 0);
-  const porMetodo = (m: string) => (q.data?.pagos ?? []).filter((p) => p.metodo === m).reduce((s, p) => s + Number(p.monto), 0);
-  const top = new Map<string, { cant: number; monto: number }>();
-  pagadas.flatMap((c) => c.comandas.flatMap((k) => k.comanda_items)).forEach((i) => {
-    const t = top.get(i.nombre) ?? { cant: 0, monto: 0 };
-    t.cant += i.cantidad; t.monto += i.cantidad * Number(i.precio_unitario);
-    top.set(i.nombre, t);
-  });
-  const ranking = [...top.entries()].sort((a, b) => b[1].cant - a[1].cant).slice(0, 10);
-
-  const kpis = [
-    { l: "Total vendido", v: mxn(total) },
-    { l: "Propinas", v: mxn(propinas) },
-    { l: "Efectivo cobrado", v: mxn(porMetodo("efectivo")) },
-    { l: "Clip cobrado", v: mxn(porMetodo("clip")) },
-    { l: "Ticket promedio", v: mxn(pagadas.length ? total / pagadas.length : 0) },
-    { l: "Cuentas cobradas", v: String(pagadas.length) },
-    { l: "Anuladas", v: String(anuladas) },
-  ];
-
-  return (
-    <div className="mt-4 space-y-6">
-      <div className="flex items-center gap-3">
-        <label className="text-sm text-muted-foreground">Fecha operativa (Monterrey)</label>
-        <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-auto" />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {kpis.map((k) => (
-          <div key={k.l} className="rounded-2xl border bg-card p-5">
-            <p className="text-sm text-muted-foreground">{k.l}</p>
-            <p className="font-display text-4xl">{k.v}</p>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-2xl border bg-card p-5">
-        <h3 className="font-display text-3xl mb-3">Top productos</h3>
-        {ranking.length === 0 ? <p className="text-muted-foreground">Sin ventas en esta fecha.</p> : (
-          <table className="w-full text-left">
-            <thead className="text-sm text-muted-foreground"><tr><th>Producto</th><th className="text-right">Piezas</th><th className="text-right">Monto</th></tr></thead>
-            <tbody>{ranking.map(([n, t]) => (
-              <tr key={n} className="border-t"><td className="py-2">{n}</td><td className="text-right">{t.cant}</td><td className="text-right tabular-nums">{mxn(t.monto)}</td></tr>
-            ))}</tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
