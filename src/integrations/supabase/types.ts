@@ -116,6 +116,7 @@ export type Database = {
           mesa_id: string
           metodo_pago: string | null
           motivo_anulacion: string | null
+          propina: number
           total: number | null
         }
         Insert: {
@@ -127,6 +128,7 @@ export type Database = {
           mesa_id: string
           metodo_pago?: string | null
           motivo_anulacion?: string | null
+          propina?: number
           total?: number | null
         }
         Update: {
@@ -138,6 +140,7 @@ export type Database = {
           mesa_id?: string
           metodo_pago?: string | null
           motivo_anulacion?: string | null
+          propina?: number
           total?: number | null
         }
         Relationships: [
@@ -174,6 +177,38 @@ export type Database = {
         }
         Relationships: []
       }
+      pagos: {
+        Row: {
+          created_at: string
+          cuenta_id: string
+          id: string
+          metodo: string
+          monto: number
+        }
+        Insert: {
+          created_at?: string
+          cuenta_id: string
+          id?: string
+          metodo: string
+          monto: number
+        }
+        Update: {
+          created_at?: string
+          cuenta_id?: string
+          id?: string
+          metodo?: string
+          monto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -185,6 +220,10 @@ export type Database = {
       }
       cobrar_cuenta: {
         Args: { p_cuenta: string; p_metodo: string }
+        Returns: number
+      }
+      cobrar_cuenta_pagos: {
+        Args: { p_cuenta: string; p_pagos: Json; p_propina?: number }
         Returns: number
       }
       enviar_comanda: {
