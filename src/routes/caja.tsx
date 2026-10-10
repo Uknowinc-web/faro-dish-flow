@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { hoyMonterrey, horaMty, mxn } from "@/lib/catalogo";
+import { resumenPago } from "@/lib/pagos";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/caja")({
@@ -105,6 +106,9 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
   const [anular, setAnular] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [propina, setPropina] = useState("");
+  const [montoEfectivo, setMontoEfectivo] = useState("");
+  const [montoClip, setMontoClip] = useState("");
   const q = useQuery({
     queryKey: ["cuenta", cuentaId],
     queryFn: async () =>
