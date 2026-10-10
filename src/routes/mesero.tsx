@@ -7,8 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/use-realtime";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { CARNES, CATEGORIAS, NOTAS_RAPIDAS, PRODUCTOS, modsMixta, precioUnitario, horaMty, type Carne, type ModSeleccionado, type Producto } from "@/lib/catalogo";
+import { CARNES, CATEGORIAS, NOTAS_RAPIDAS, modsMixta, precioUnitario, horaMty, type Carne, type ModSeleccionado, type Producto } from "@/lib/catalogo";
 import { cn } from "@/lib/utils";
+import { PinGate, SesionBar, useBitacora, useSesion } from "@/lib/sesion";
+import { useCatalogo } from "@/hooks/use-catalogo";
 
 export const Route = createFileRoute("/mesero")({
   ssr: false,
@@ -20,7 +22,7 @@ export const Route = createFileRoute("/mesero")({
       { property: "og:description", content: "Toma de comandas para meseros de Tacos el Faro." },
     ],
   }),
-  component: Mesero,
+  component: () => <PinGate estacion="mesero" roles={["mesero"]}><Mesero /></PinGate>,
 });
 
 type Linea = { key: string; producto: Producto; cantidad: number; mods: ModSeleccionado[]; notas: string };
@@ -39,6 +41,9 @@ const etiquetaComanda: Record<string, string> = { pendiente: "Pendiente", prepar
 
 function Mesero() {
   useRealtime();
+  const { empleado } = useSesion();
+  const log = useBitacora();
+  const catalogo = useCatalogo();
   const [mesa, setMesa] = useState<{ id: string; nombre: string } | null>(null);
   const [cat, setCat] = useState<string>(CATEGORIAS[0]);
   const [lineas, setLineas] = useState<Linea[]>([]);
@@ -49,16 +54,17 @@ function Mesero() {
 
   const mesas = useQuery({
     queryKey: ["mesas"],
-    queryFn: async () => (await supabase.from("mesas").select("id,nombre,estado,orden").order("orden").order("nombre")).data ?? [],
+    queryFn: async () => (await supabase.from("mesas").select("id,nombre,estado,orden").eq("activo", true).order("orden").order("nombre")).data ?? [],
   });
   const ordenes = useQuery({
-    queryKey: ["mesero-ordenes"],
+    queryKey: ["mesero-ordenes", empleado.nombre],
     queryFn: async () => {
       const desde = new Date(Date.now() - 12 * 3600_000).toISOString();
       return (
         (await supabase
           .from("comandas")
           .select("id,numero,estado,created_at,mesas(nombre),comanda_items(cantidad,nombre)")
+          .eq("mesero", empleado.nombre)
           .gte("created_at", desde)
           .order("created_at", { ascending: false })).data ?? []
       );
@@ -79,10 +85,11 @@ function Mesero() {
       notas: l.notas,
       estacion: l.producto.estacion,
     }));
-    const { error } = await supabase.rpc("enviar_comanda", { p_mesa: mesa.id, p_token: token, p_items: items });
+    const { error } = await supabase.rpc("enviar_comanda", { p_mesa: mesa.id, p_token: token, p_items: items, p_mesero: empleado.nombre });
     setEnviando(false);
     if (error) { toast.error("No se pudo enviar: " + error.message); return; }
     toast.success(`Comanda enviada · ${mesa.nombre}`);
+    log("Comanda enviada", `${mesa.nombre}: ${lineas.map((l) => `${l.cantidad} ${l.producto.nombre}`).join(", ")}`);
     setLineas([]);
     setToken(crypto.randomUUID());
     setMesa(null);
@@ -93,7 +100,8 @@ function Mesero() {
       <main className="min-h-screen pb-24 max-w-xl mx-auto">
         <header className="flex items-center gap-3 p-4">
           <Link to="/" aria-label="Inicio"><ArrowLeft /></Link>
-          <h1 className="font-display text-4xl">Mesero</h1>
+          <h1 className="font-display text-4xl flex-1">Mesero</h1>
+          <SesionBar />
         </header>
         <div className="flex gap-2 px-4">
           {(["mesas", "ordenes"] as const).map((v) => (
@@ -131,7 +139,7 @@ function Mesero() {
     );
   }
 
-  const productos = PRODUCTOS.filter((p) => p.categoria === cat);
+  const productos = catalogo.filter((p) => p.categoria === cat);
 
   return (
     <main className="min-h-screen pb-40 max-w-xl mx-auto">
@@ -148,8 +156,9 @@ function Mesero() {
       </header>
       <div className="grid grid-cols-2 gap-3 p-4">
         {productos.map((p) => (
-          <button key={p.id} onClick={() => setEditar(p)} className="rounded-xl border bg-card min-h-20 p-3 text-left active:scale-95 transition">
+          <button key={p.id} disabled={p.agotado} onClick={() => setEditar(p)} className="rounded-xl border bg-card min-h-20 p-3 text-left active:scale-95 transition disabled:opacity-40">
             <span className="font-semibold">{p.nombre}</span>
+            {p.agotado && <span className="block text-xs text-destructive">Agotado</span>}
             {p.estacion === "barra" && <span className="block text-xs text-info">Barra</span>}
           </button>
         ))}

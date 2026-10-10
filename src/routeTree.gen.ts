@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CajaRouteImport } from './routes/caja'
 import { Route as CocinaRouteImport } from './routes/cocina'
 import { Route as MeseroRouteImport } from './routes/mesero'
@@ -17,6 +18,11 @@ import { Route as MeseroRouteImport } from './routes/mesero'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CajaRoute = CajaRouteImport.update({
@@ -37,12 +43,14 @@ const MeseroRoute = MeseroRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/caja': typeof CajaRoute
   '/cocina': typeof CocinaRoute
   '/mesero': typeof MeseroRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/caja': typeof CajaRoute
   '/cocina': typeof CocinaRoute
   '/mesero': typeof MeseroRoute
@@ -50,20 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/caja': typeof CajaRoute
   '/cocina': typeof CocinaRoute
   '/mesero': typeof MeseroRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/caja' | '/cocina' | '/mesero'
+  fullPaths: '/' | '/admin' | '/caja' | '/cocina' | '/mesero'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/caja' | '/cocina' | '/mesero'
-  id: '__root__' | '/' | '/caja' | '/cocina' | '/mesero'
+  to: '/' | '/admin' | '/caja' | '/cocina' | '/mesero'
+  id: '__root__' | '/' | '/admin' | '/caja' | '/cocina' | '/mesero'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   CajaRoute: typeof CajaRoute
   CocinaRoute: typeof CocinaRoute
   MeseroRoute: typeof MeseroRoute
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/caja': {
@@ -104,6 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   CajaRoute: CajaRoute,
   CocinaRoute: CocinaRoute,
   MeseroRoute: MeseroRoute,

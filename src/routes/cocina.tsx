@@ -7,6 +7,7 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { Button } from "@/components/ui/button";
 import { horaMty } from "@/lib/catalogo";
 import { cn } from "@/lib/utils";
+import { PinGate, SesionBar, useBitacora } from "@/lib/sesion";
 
 export const Route = createFileRoute("/cocina")({
   ssr: false,
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/cocina")({
       { property: "og:description", content: "Pantalla de comandas de cocina en tiempo real." },
     ],
   }),
-  component: Cocina,
+  component: () => <PinGate estacion="cocina" roles={["cocina"]}><Cocina /></PinGate>,
 });
 
 const siguiente: Record<string, { estado: string; label: string; cls: string }> = {
@@ -44,6 +45,7 @@ function beep() {
 function Cocina() {
   const [sonido, setSonido] = useState(false);
   const [flash, setFlash] = useState(false);
+  const log = useBitacora();
   const sonidoRef = useRef(sonido);
   sonidoRef.current = sonido;
 
@@ -71,6 +73,8 @@ function Cocina() {
 
   async function avanzar(id: string, estado: string) {
     await supabase.from("comandas").update({ estado }).eq("id", id);
+    const c = q.data?.find((x) => x.id === id);
+    log(estado === "listo" ? "Comanda lista" : "Comanda en preparación", c ? `#${c.numero} · ${(c.mesas as { nombre: string } | null)?.nombre ?? ""}` : undefined);
     q.refetch();
   }
 
@@ -79,6 +83,7 @@ function Cocina() {
       <header className="flex items-center gap-3 mb-4">
         <Link to="/" aria-label="Inicio"><ArrowLeft /></Link>
         <h1 className="font-display text-5xl flex-1">Cocina</h1>
+        <SesionBar />
         <span className="text-muted-foreground">{q.data?.length ?? 0} en cola</span>
         <Button variant={sonido ? "default" : "secondary"} onClick={() => { setSonido(!sonido); if (!sonido) beep(); }}>
           {sonido ? <Bell /> : <BellOff />} {sonido ? "Sonido activo" : "Activar sonido"}

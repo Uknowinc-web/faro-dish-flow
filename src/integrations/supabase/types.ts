@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      bitacora: {
+        Row: {
+          accion: string
+          created_at: string
+          detalle: string | null
+          empleado_id: string | null
+          empleado_nombre: string | null
+          id: string
+        }
+        Insert: {
+          accion: string
+          created_at?: string
+          detalle?: string | null
+          empleado_id?: string | null
+          empleado_nombre?: string | null
+          id?: string
+        }
+        Update: {
+          accion?: string
+          created_at?: string
+          detalle?: string | null
+          empleado_id?: string | null
+          empleado_nombre?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      caja_fondos: {
+        Row: {
+          fecha: string
+          monto: number
+        }
+        Insert: {
+          fecha: string
+          monto?: number
+        }
+        Update: {
+          fecha?: string
+          monto?: number
+        }
+        Relationships: []
+      }
       comanda_items: {
         Row: {
           cantidad: number
@@ -153,8 +195,36 @@ export type Database = {
           },
         ]
       }
+      empleados: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id: string
+          nombre: string
+          pin_hash: string
+          rol: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre: string
+          pin_hash: string
+          rol: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre?: string
+          pin_hash?: string
+          rol?: string
+        }
+        Relationships: []
+      }
       mesas: {
         Row: {
+          activo: boolean
           created_at: string
           estado: string
           id: string
@@ -162,6 +232,7 @@ export type Database = {
           orden: number
         }
         Insert: {
+          activo?: boolean
           created_at?: string
           estado?: string
           id?: string
@@ -169,6 +240,7 @@ export type Database = {
           orden?: number
         }
         Update: {
+          activo?: boolean
           created_at?: string
           estado?: string
           id?: string
@@ -209,11 +281,137 @@ export type Database = {
           },
         ]
       }
+      producto_ajustes: {
+        Row: {
+          agotado: boolean
+          precio: number | null
+          producto_id: string
+          updated_at: string
+        }
+        Insert: {
+          agotado?: boolean
+          precio?: number | null
+          producto_id: string
+          updated_at?: string
+        }
+        Update: {
+          agotado?: boolean
+          precio?: number | null
+          producto_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      turnos: {
+        Row: {
+          empleado_id: string
+          entrada: string
+          id: string
+          salida: string | null
+        }
+        Insert: {
+          empleado_id: string
+          entrada?: string
+          id?: string
+          salida?: string | null
+        }
+        Update: {
+          empleado_id?: string
+          entrada?: string
+          id?: string
+          salida?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turnos_empleado_id_fkey"
+            columns: ["empleado_id"]
+            isOneToOne: false
+            referencedRelation: "empleados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      _admin: {
+        Args: { p_pin: string }
+        Returns: {
+          activo: boolean
+          created_at: string
+          id: string
+          nombre: string
+          pin_hash: string
+          rol: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "empleados"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      _empleado_por_pin: {
+        Args: { p_pin: string }
+        Returns: {
+          activo: boolean
+          created_at: string
+          id: string
+          nombre: string
+          pin_hash: string
+          rol: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "empleados"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_ajustar_producto: {
+        Args: {
+          p_admin_pin: string
+          p_agotado: boolean
+          p_nombre: string
+          p_precio: number
+          p_producto: string
+        }
+        Returns: undefined
+      }
+      admin_cancelar_item: {
+        Args: { p_admin_pin: string; p_item: string; p_motivo: string }
+        Returns: undefined
+      }
+      admin_fondo_caja: {
+        Args: { p_admin_pin: string; p_fecha: string; p_monto: number }
+        Returns: undefined
+      }
+      admin_guardar_empleado: {
+        Args: {
+          p_activo: boolean
+          p_admin_pin: string
+          p_id: string
+          p_nombre: string
+          p_pin: string
+          p_rol: string
+        }
+        Returns: string
+      }
+      admin_guardar_mesa: {
+        Args: {
+          p_activo: boolean
+          p_admin_pin: string
+          p_id: string
+          p_nombre: string
+        }
+        Returns: undefined
+      }
+      admin_reabrir_cuenta: {
+        Args: { p_admin_pin: string; p_cuenta: string; p_motivo: string }
+        Returns: undefined
+      }
       anular_cuenta: {
         Args: { p_cuenta: string; p_motivo: string }
         Returns: undefined
@@ -235,7 +433,19 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_turno: {
+        Args: { p_pin: string; p_tipo: string }
+        Returns: undefined
+      }
       solicitar_cuenta: { Args: { p_cuenta: string }; Returns: undefined }
+      verificar_pin: {
+        Args: { p_pin: string }
+        Returns: {
+          id: string
+          nombre: string
+          rol: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

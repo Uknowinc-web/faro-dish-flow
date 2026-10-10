@@ -48,3 +48,16 @@ describe("productos fijos", () => {
     expect(p(id).grupos).toBeUndefined();
   });
 });
+
+import { aplicarAjustes as _aj, PRODUCTOS as _P } from "@/lib/catalogo";
+describe("ajustes de administrador", () => {
+  it("cambia el precio de un producto y lo marca agotado", () => {
+    const p = _aj(_P, [{ producto_id: "taco-maiz", precio: 45, agotado: true }]).find((x) => x.id === "taco-maiz")!;
+    expect(p.precio).toBe(45);
+    expect(p.agotado).toBe(true);
+  });
+  it("sin precio nuevo conserva el precio de catálogo", () => {
+    const p = _aj(_P, [{ producto_id: "torta", precio: null, agotado: false }]).find((x) => x.id === "torta")!;
+    expect(p.precio).toBe(130);
+  });
+});

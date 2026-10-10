@@ -48,3 +48,13 @@ describe("resumenPago", () => {
     expect(resumenPago(100, 0, [{ metodo: "efectivo", monto: 0 }]).valido).toBe(false);
   });
 });
+
+import { efectivoNeto as _en } from "@/lib/pagos";
+describe("dinero en caja", () => {
+  it("descuenta el cambio entregado", () => {
+    expect(_en([{ id: "a", total: 170, propina: 0 }], [{ cuenta_id: "a", metodo: "efectivo", monto: 200 }])).toBe(170);
+  });
+  it("en pago mixto solo cuenta la parte en efectivo", () => {
+    expect(_en([{ id: "a", total: 300, propina: 20 }], [{ cuenta_id: "a", metodo: "efectivo", monto: 120 }, { cuenta_id: "a", metodo: "clip", monto: 200 }])).toBe(120);
+  });
+});
