@@ -16,3 +16,5 @@
 - Duplicate sends are blocked by a unique client token per order draft, checked inside enviar_comanda.
 - All three stations get live updates through one realtime hook (`src/hooks/use-realtime.ts`) that refreshes cached queries.
 - Business date uses the America/Monterrey timezone, stamped when an account is paid or voided.
+- Staff identify with a per-employee PIN (hashed in `empleados`); stations wrap content in `PinGate` from `src/lib/sesion.tsx`, and admin changes go through `admin_*` database functions that re-check the admin PIN and write to `bitacora`.
+- Admin price/sold-out changes live in `producto_ajustes` and are merged over the catalog via `aplicarAjustes`, so the catalog file stays the base source.
