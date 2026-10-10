@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { hoyMonterrey, horaMty, mxn } from "@/lib/catalogo";
+import { horaMty, mxn } from "@/lib/catalogo";
 import { resumenPago } from "@/lib/pagos";
 import { Corte } from "@/components/corte";
 import { PinGate, SesionBar, useBitacora } from "@/lib/sesion";
