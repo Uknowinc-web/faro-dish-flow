@@ -226,13 +226,21 @@ function Corte() {
   const [fecha, setFecha] = useState(hoyMonterrey());
   const q = useQuery({
     queryKey: ["corte", fecha],
-    queryFn: async () =>
-      (await supabase.from("cuentas").select("id,estado,metodo_pago,total,comandas(comanda_items(nombre,cantidad,precio_unitario))").eq("fecha_operativa", fecha).in("estado", ["pagada", "anulada"])).data ?? [],
+    queryFn: async () => {
+      const cs = (await supabase.from("cuentas").select("id,estado,metodo_pago,total,propina,comandas(comanda_items(nombre,cantidad,precio_unitario))").eq("fecha_operativa", fecha).in("estado", ["pagada", "anulada"])).data ?? [];
+      const ids = cs.filter((c) => c.estado === "pagada").map((c) => c.id);
+      const ps = ids.length
+        ? (await supabase.from("pagos").select("cuenta_id,metodo,monto").in("cuenta_id", ids)).data ?? []
+        : [];
+      return { cuentas: cs, pagos: ps };
+    },
   });
-  const pagadas = q.data?.filter((c) => c.estado === "pagada") ?? [];
-  const anuladas = (q.data?.length ?? 0) - pagadas.length;
+  const cuentas = q.data?.cuentas ?? [];
+  const pagadas = cuentas.filter((c) => c.estado === "pagada");
+  const anuladas = cuentas.length - pagadas.length;
   const total = pagadas.reduce((s, c) => s + Number(c.total ?? 0), 0);
-  const porMetodo = (m: string) => pagadas.filter((c) => c.metodo_pago === m).reduce((s, c) => s + Number(c.total ?? 0), 0);
+  const propinas = pagadas.reduce((s, c) => s + Number(c.propina ?? 0), 0);
+  const porMetodo = (m: string) => (q.data?.pagos ?? []).filter((p) => p.metodo === m).reduce((s, p) => s + Number(p.monto), 0);
   const top = new Map<string, { cant: number; monto: number }>();
   pagadas.flatMap((c) => c.comandas.flatMap((k) => k.comanda_items)).forEach((i) => {
     const t = top.get(i.nombre) ?? { cant: 0, monto: 0 };
