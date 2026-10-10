@@ -29,3 +29,14 @@ export function resumenPago(total: number, propina: number, pagos: PagoParcial[]
     mixto: new Set(limpios.map((p) => p.metodo)).size > 1,
   };
 }
+
+/** Cash actually kept per account: cash received minus change given back. */
+export function efectivoNeto(cuentas: { id: string; total: number; propina: number }[], pagos: { cuenta_id: string; metodo: string; monto: number }[]): number {
+  return cuentas.reduce((s, c) => {
+    const ps = pagos.filter((p) => p.cuenta_id === c.id);
+    const efectivo = ps.filter((p) => p.metodo === "efectivo").reduce((a, p) => a + Number(p.monto), 0);
+    const suma = ps.reduce((a, p) => a + Number(p.monto), 0);
+    const cambio = Math.max(suma - (Number(c.total) + Number(c.propina)), 0);
+    return s + Math.max(efectivo - cambio, 0);
+  }, 0);
+}

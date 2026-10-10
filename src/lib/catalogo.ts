@@ -85,3 +85,14 @@ export function hoyMonterrey(): string {
 
 export const horaMty = (iso: string) =>
   new Intl.DateTimeFormat("es-MX", { timeZone: "America/Monterrey", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+
+export type AjusteProducto = { producto_id: string; precio: number | null; agotado: boolean };
+
+/** Applies admin price overrides; null price keeps the catalog price. */
+export function aplicarAjustes(productos: Producto[], ajustes: AjusteProducto[]): (Producto & { agotado: boolean })[] {
+  const m = new Map(ajustes.map((a) => [a.producto_id, a]));
+  return productos.map((p) => {
+    const a = m.get(p.id);
+    return { ...p, precio: a?.precio != null ? Number(a.precio) : p.precio, agotado: a?.agotado ?? false };
+  });
+}

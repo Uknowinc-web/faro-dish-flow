@@ -15,6 +15,12 @@ export function useRealtime(onComandaNueva?: () => void) {
         qc.invalidateQueries();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "comanda_items" }, () => qc.invalidateQueries())
+      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => qc.invalidateQueries())
+      .on("postgres_changes", { event: "*", schema: "public", table: "producto_ajustes" }, () => qc.invalidateQueries())
+      .on("postgres_changes", { event: "*", schema: "public", table: "bitacora" }, () => qc.invalidateQueries({ queryKey: ["bitacora"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "turnos" }, () => qc.invalidateQueries({ queryKey: ["turnos"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "empleados" }, () => qc.invalidateQueries({ queryKey: ["empleados"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "caja_fondos" }, () => qc.invalidateQueries())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
