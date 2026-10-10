@@ -15,6 +15,13 @@
       "when": 1791624647594,
       "tag": "0001_pagos_mixtos_y_propinas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791627038648,
+      "tag": "0002_admin_panel",
+      "breakpoints": true
     }
   ]
 }
