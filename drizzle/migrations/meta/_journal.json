@@ -29,6 +29,13 @@
       "when": 1791869315731,
       "tag": "0003_rol_permisos",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791900000000,
+      "tag": "0004_seguridad_caja_pin",
+      "breakpoints": true
     }
   ]
 }

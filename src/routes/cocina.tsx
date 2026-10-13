@@ -7,7 +7,8 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { Button } from "@/components/ui/button";
 import { horaMty } from "@/lib/catalogo";
 import { cn } from "@/lib/utils";
-import { PinGate, SesionBar, useBitacora } from "@/lib/sesion";
+import { PinGate, SesionBar, useSesion } from "@/lib/sesion";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/cocina")({
   ssr: false,
@@ -45,7 +46,7 @@ function beep() {
 function Cocina() {
   const [sonido, setSonido] = useState(false);
   const [flash, setFlash] = useState(false);
-  const log = useBitacora();
+  const { pin } = useSesion();
   const sonidoRef = useRef(sonido);
   sonidoRef.current = sonido;
 
@@ -72,9 +73,9 @@ function Cocina() {
   });
 
   async function avanzar(id: string, estado: string) {
-    await supabase.from("comandas").update({ estado }).eq("id", id);
-    const c = q.data?.find((x) => x.id === id);
-    log(estado === "listo" ? "Comanda lista" : "Comanda en preparación", c ? `#${c.numero} · ${(c.mesas as { nombre: string } | null)?.nombre ?? ""}` : undefined);
+    // El servidor valida el PIN, el permiso de cocina y la transición de estado.
+    const { error } = await supabase.rpc("cocina_cambiar_estado", { p_pin: pin ?? "", p_comanda: id, p_estado: estado });
+    if (error) toast.error(error.message);
     q.refetch();
   }
 

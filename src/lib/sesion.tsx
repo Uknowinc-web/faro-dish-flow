@@ -13,6 +13,14 @@ type Sesion = { empleado: Empleado; pin: string | null; salir: () => void; puede
 
 const Ctx = createContext<Sesion | null>(null);
 
+/** Random id kept per browser so failed PIN attempts are counted per device. */
+function dispositivoId(): string {
+  const k = "faro-dispositivo";
+  let id = localStorage.getItem(k);
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem(k, id); }
+  return id;
+}
+
 export function useSesion() {
   const s = useContext(Ctx);
   if (!s) throw new Error("useSesion fuera de PinGate");
@@ -21,12 +29,13 @@ export function useSesion() {
 
 /** Writes one line to the action log under the signed-in employee. */
 export function useBitacora() {
-  const { empleado } = useSesion();
+  const { pin } = useSesion();
   return useCallback(
     (accion: string, detalle?: string) => {
-      void supabase.from("bitacora").insert({ empleado_id: empleado.id, empleado_nombre: empleado.nombre, accion, detalle: detalle ?? null });
+      if (!pin) return;
+      void supabase.rpc("registrar_bitacora", { p_pin: pin, p_accion: accion, p_detalle: detalle ?? null });
     },
-    [empleado],
+    [pin],
   );
 }
 
@@ -40,14 +49,16 @@ export function useRolPermisos() {
   });
 }
 
-export function PinGate({ estacion, permiso, guardaPin = false, children }: { estacion: string; permiso: string; guardaPin?: boolean; children: ReactNode }) {
+export function PinGate({ estacion, permiso, guardaPin = true, children }: { estacion: string; permiso: string; guardaPin?: boolean; children: ReactNode }) {
   const key = `faro-sesion-${estacion}`;
   const permisos = useRolPermisos();
   const [sesion, setSesion] = useState<{ empleado: Empleado; pin: string | null } | null | undefined>(undefined);
 
   useEffect(() => {
     const raw = (guardaPin ? sessionStorage : localStorage).getItem(key);
-    setSesion(raw ? JSON.parse(raw) : null);
+    const s = raw ? JSON.parse(raw) : null;
+    // Sesiones guardadas sin PIN (versión anterior) deben volver a iniciar sesión.
+    setSesion(s?.pin ? s : null);
   }, [key, guardaPin]);
 
   const salir = useCallback(() => {
@@ -97,8 +108,9 @@ function PinPad({ titulo, onEntrar }: { titulo: string; onEntrar: (e: Empleado, 
   const [busy, setBusy] = useState(false);
 
   async function verificar(): Promise<Empleado | null> {
-    const { data, error } = await supabase.rpc("verificar_pin", { p_pin: pin });
-    if (error || !data?.[0]) { toast.error("PIN incorrecto"); setPin(""); return null; }
+    const { data, error } = await supabase.rpc("verificar_pin", { p_pin: pin, p_dispositivo: dispositivoId() });
+    if (error) { toast.error(error.message.includes("Demasiados") ? error.message : "PIN incorrecto"); setPin(""); return null; }
+    if (!data?.[0]) { toast.error("PIN incorrecto"); setPin(""); return null; }
     return data[0] as Empleado;
   }
   async function entrar() {

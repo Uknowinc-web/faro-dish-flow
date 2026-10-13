@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { horaMty, mxn } from "@/lib/catalogo";
 import { resumenPago } from "@/lib/pagos";
 import { Corte } from "@/components/corte";
-import { PinGate, SesionBar, useBitacora, useSesion } from "@/lib/sesion";
+import { PinGate, SesionBar, useSesion } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/caja")({
@@ -54,7 +54,7 @@ function Caja() {
 }
 
 function Mesas() {
-  const { puede } = useSesion();
+  const { puede, pin } = useSesion();
   const [sel, setSel] = useState<string | null>(null);
   const [nueva, setNueva] = useState("");
   const mesas = useQuery({
@@ -74,7 +74,7 @@ function Mesas() {
 
   async function agregarMesa() {
     if (!nueva.trim()) return;
-    const { error } = await supabase.from("mesas").insert({ nombre: nueva.trim(), orden: 50 });
+    const { error } = await supabase.rpc("caja_agregar_mesa", { p_pin: pin ?? "", p_nombre: nueva.trim() });
     if (error) { toast.error(error.code === "23505" ? "Ya existe esa mesa" : error.message); return; }
     setNueva("");
     mesas.refetch();
@@ -108,8 +108,7 @@ function Mesas() {
 }
 
 function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: string; estado: string; onDone: () => void }) {
-  const log = useBitacora();
-  const { puede } = useSesion();
+  const { puede, pin } = useSesion();
   const [anular, setAnular] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -124,15 +123,15 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
   const items = q.data?.flatMap((c) => c.comanda_items) ?? [];
   const total = items.reduce((s, i) => s + i.cantidad * Number(i.precio_unitario), 0);
 
-  async function rpc(fn: "cobrar_cuenta" | "solicitar_cuenta" | "anular_cuenta", args: Record<string, string>, ok: string) {
+  // La validación de permiso y el registro en bitácora ocurren en el servidor.
+  async function rpc(fn: "caja_solicitar_cuenta" | "caja_anular_cuenta", args: Record<string, string>, ok: string) {
     setBusy(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.rpc(fn, args as any);
+    const { error } = await supabase.rpc(fn, { p_pin: pin ?? "", ...args } as any);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(ok);
-    log(ok, fn === "anular_cuenta" ? `${mesa} — ${args["p_motivo"]}` : `${mesa} · ${mxn(total)}`);
-    if (fn !== "solicitar_cuenta") onDone();
+    if (fn !== "caja_solicitar_cuenta") onDone();
   }
 
   return (
@@ -163,7 +162,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
       </div>
       <div className="mt-4 space-y-3">
         {estado !== "por_cobrar" && puede("caja.por_cobrar") && (
-          <Button variant="secondary" className="w-full h-12" disabled={busy} onClick={() => rpc("solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
+          <Button variant="secondary" className="w-full h-12" disabled={busy} onClick={() => rpc("caja_solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
         )}
         {puede("caja.cobrar") && <div className="rounded-xl border p-3 space-y-3">
           <div className="flex items-center gap-2">
@@ -201,11 +200,10 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
                       { metodo: "clip", monto: Number(montoClip) || 0 },
                     ].filter((p) => p.monto > 0);
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const { error } = await supabase.rpc("cobrar_cuenta_pagos", { p_cuenta: cuentaId, p_pagos: pagos, p_propina: Number(propina) || 0 } as any);
+                    const { error } = await supabase.rpc("caja_cobrar_cuenta", { p_pin: pin ?? "", p_cuenta: cuentaId, p_pagos: pagos, p_propina: Number(propina) || 0 } as any);
                     setBusy(false);
                     if (error) { toast.error(error.message); return; }
                     toast.success(r.mixto ? "Cobrado (pago mixto)" : "Cuenta cobrada");
-                    log("Cuenta cobrada", `${mesa} · ${mxn(total)}${Number(propina) ? ` + propina ${mxn(Number(propina))}` : ""} · ${pagos.map((p) => `${p.metodo} ${mxn(p.monto)}`).join(", ")}`);
                     onDone();
                   }}
                 >
@@ -223,7 +221,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
           <p className="text-sm text-muted-foreground">La cuenta no se contará en ventas. Escribe el motivo.</p>
           <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo de anulación" />
           <DialogFooter>
-            <Button variant="destructive" disabled={!motivo.trim() || busy} onClick={async () => { await rpc("anular_cuenta", { p_cuenta: cuentaId, p_motivo: motivo }, "Cuenta anulada"); setAnular(false); setMotivo(""); }}>Confirmar anulación</Button>
+            <Button variant="destructive" disabled={!motivo.trim() || busy} onClick={async () => { await rpc("caja_anular_cuenta", { p_cuenta: cuentaId, p_motivo: motivo }, "Cuenta anulada"); setAnular(false); setMotivo(""); }}>Confirmar anulación</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
