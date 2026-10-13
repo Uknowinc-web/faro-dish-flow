@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { horaMty, mxn } from "@/lib/catalogo";
 import { resumenPago } from "@/lib/pagos";
 import { Corte } from "@/components/corte";
-import { PinGate, SesionBar, useBitacora, useSesion } from "@/lib/sesion";
+import { PinGate, SesionBar, useSesion } from "@/lib/sesion";
+import { useConexion } from "@/hooks/use-conexion";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/caja")({
@@ -38,7 +39,7 @@ function Caja() {
   useRealtime();
   const { puede } = useSesion();
   return (
-    <main className="min-h-screen p-4 md:p-6">
+    <main className="min-h-dvh p-4 md:p-6">
       <header className="flex items-center gap-3 mb-4">
         <Link to="/" aria-label="Inicio"><ArrowLeft /></Link>
         <h1 className="font-display text-5xl flex-1">Caja</h1>
@@ -54,7 +55,8 @@ function Caja() {
 }
 
 function Mesas() {
-  const { puede } = useSesion();
+  const { puede, pin } = useSesion();
+  const conectado = useConexion();
   const [sel, setSel] = useState<string | null>(null);
   const [nueva, setNueva] = useState("");
   const mesas = useQuery({
@@ -74,10 +76,18 @@ function Mesas() {
 
   async function agregarMesa() {
     if (!nueva.trim()) return;
-    const { error } = await supabase.from("mesas").insert({ nombre: nueva.trim(), orden: 50 });
+    const { error } = await supabase.rpc("caja_agregar_mesa", { p_pin: pin ?? "", p_nombre: nueva.trim() });
     if (error) { toast.error(error.code === "23505" ? "Ya existe esa mesa" : error.message); return; }
     setNueva("");
     mesas.refetch();
+  }
+
+  function elegir(id: string) {
+    setSel(id);
+    // En celular y tablet vertical el panel de cuenta queda debajo de las mesas: lo traemos a la vista.
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      requestAnimationFrame(() => document.getElementById("cuenta-caja")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
   }
 
   const actual = mesas.data?.find((m) => m.id === sel);
@@ -87,7 +97,7 @@ function Mesas() {
       <div>
         <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-3">
           {mesas.data?.map((m) => (
-            <button key={m.id} onClick={() => setSel(m.id)} className={cn("rounded-xl border-2 bg-card p-4 h-28 text-left transition", estiloMesa[m.estado], sel === m.id && "ring-2 ring-ring")}>
+            <button key={m.id} onClick={() => elegir(m.id)} className={cn("rounded-xl border-2 bg-card p-4 h-28 text-left transition", estiloMesa[m.estado], sel === m.id && "ring-2 ring-ring")}>
               <p className="font-display text-2xl text-foreground">{m.nombre}</p>
               <p className="text-xs capitalize">{m.estado.replace("_", " ")}</p>
               {m.cuentaId && <p className="font-semibold text-foreground mt-1">{mxn(m.total)}</p>}
@@ -96,10 +106,10 @@ function Mesas() {
         </div>
         {puede("caja.agregar_mesa") && <div className="flex gap-2 mt-4 max-w-sm">
           <Input value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Nueva mesa (ej. Terraza 1)" />
-          <Button onClick={agregarMesa}><Plus /> Agregar</Button>
+          <Button onClick={agregarMesa} disabled={!conectado}><Plus /> Agregar</Button>
         </div>}
       </div>
-      <aside className="rounded-2xl border bg-card p-5 h-fit lg:sticky lg:top-4">
+      <aside id="cuenta-caja" className="scroll-mt-4 rounded-2xl border bg-card p-5 h-fit lg:sticky lg:top-4">
         {actual?.cuentaId ? <Cuenta cuentaId={actual.cuentaId} mesa={actual.nombre} estado={actual.estado} onDone={() => setSel(null)} />
           : <p className="text-muted-foreground text-center py-12">{actual ? `${actual.nombre} está disponible.` : "Selecciona una mesa con cuenta abierta."}</p>}
       </aside>
@@ -108,8 +118,8 @@ function Mesas() {
 }
 
 function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: string; estado: string; onDone: () => void }) {
-  const log = useBitacora();
-  const { puede } = useSesion();
+  const { puede, pin } = useSesion();
+  const conectado = useConexion();
   const [anular, setAnular] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -124,15 +134,15 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
   const items = q.data?.flatMap((c) => c.comanda_items) ?? [];
   const total = items.reduce((s, i) => s + i.cantidad * Number(i.precio_unitario), 0);
 
-  async function rpc(fn: "cobrar_cuenta" | "solicitar_cuenta" | "anular_cuenta", args: Record<string, string>, ok: string) {
+  // La validación de permiso y el registro en bitácora ocurren en el servidor.
+  async function rpc(fn: "caja_solicitar_cuenta" | "caja_anular_cuenta", args: Record<string, string>, ok: string) {
     setBusy(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.rpc(fn, args as any);
+    const { error } = await supabase.rpc(fn, { p_pin: pin ?? "", ...args } as any);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(ok);
-    log(ok, fn === "anular_cuenta" ? `${mesa} — ${args["p_motivo"]}` : `${mesa} · ${mxn(total)}`);
-    if (fn !== "solicitar_cuenta") onDone();
+    if (fn !== "caja_solicitar_cuenta") onDone();
   }
 
   return (
@@ -141,7 +151,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
         <h2 className="font-display text-4xl">{mesa}</h2>
         <span className="text-sm text-muted-foreground">{q.data?.length ?? 0} comandas</span>
       </div>
-      <div className="mt-4 space-y-2 max-h-[45vh] overflow-y-auto">
+      <div className="mt-4 space-y-2 max-h-[45dvh] overflow-y-auto">
         {q.data?.map((c) => (
           <div key={c.id}>
             <p className="text-xs text-muted-foreground">#{c.numero} · {horaMty(c.created_at)}</p>
@@ -161,9 +171,10 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
         <span className="text-muted-foreground">Total</span>
         <span className="font-display text-5xl text-primary">{mxn(total)}</span>
       </div>
+      {!conectado && <p className="mt-4 text-sm text-warning">Sin conexión: cobrar, marcar por cobrar y anular requieren internet.</p>}
       <div className="mt-4 space-y-3">
         {estado !== "por_cobrar" && puede("caja.por_cobrar") && (
-          <Button variant="secondary" className="w-full h-12" disabled={busy} onClick={() => rpc("solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
+          <Button variant="secondary" className="w-full h-12" disabled={busy || !conectado} onClick={() => rpc("caja_solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
         )}
         {puede("caja.cobrar") && <div className="rounded-xl border p-3 space-y-3">
           <div className="flex items-center gap-2">
@@ -193,7 +204,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
                 {r.cambio > 0 && <p className="text-sm text-info">Cambio: {mxn(r.cambio)}</p>}
                 <Button
                   className="w-full h-14"
-                  disabled={busy || !r.valido}
+                  disabled={busy || !r.valido || !conectado}
                   onClick={async () => {
                     setBusy(true);
                     const pagos = [
@@ -201,11 +212,10 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
                       { metodo: "clip", monto: Number(montoClip) || 0 },
                     ].filter((p) => p.monto > 0);
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const { error } = await supabase.rpc("cobrar_cuenta_pagos", { p_cuenta: cuentaId, p_pagos: pagos, p_propina: Number(propina) || 0 } as any);
+                    const { error } = await supabase.rpc("caja_cobrar_cuenta", { p_pin: pin ?? "", p_cuenta: cuentaId, p_pagos: pagos, p_propina: Number(propina) || 0 } as any);
                     setBusy(false);
                     if (error) { toast.error(error.message); return; }
                     toast.success(r.mixto ? "Cobrado (pago mixto)" : "Cuenta cobrada");
-                    log("Cuenta cobrada", `${mesa} · ${mxn(total)}${Number(propina) ? ` + propina ${mxn(Number(propina))}` : ""} · ${pagos.map((p) => `${p.metodo} ${mxn(p.monto)}`).join(", ")}`);
                     onDone();
                   }}
                 >
@@ -223,7 +233,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
           <p className="text-sm text-muted-foreground">La cuenta no se contará en ventas. Escribe el motivo.</p>
           <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo de anulación" />
           <DialogFooter>
-            <Button variant="destructive" disabled={!motivo.trim() || busy} onClick={async () => { await rpc("anular_cuenta", { p_cuenta: cuentaId, p_motivo: motivo }, "Cuenta anulada"); setAnular(false); setMotivo(""); }}>Confirmar anulación</Button>
+            <Button variant="destructive" disabled={!motivo.trim() || busy || !conectado} onClick={async () => { await rpc("caja_anular_cuenta", { p_cuenta: cuentaId, p_motivo: motivo }, "Cuenta anulada"); setAnular(false); setMotivo(""); }}>Confirmar anulación</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

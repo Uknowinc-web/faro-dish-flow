@@ -478,12 +478,40 @@ export type Database = {
       }
       solicitar_cuenta: { Args: { p_cuenta: string }; Returns: undefined }
       verificar_pin: {
-        Args: { p_pin: string }
+        Args: { p_dispositivo?: string; p_pin: string }
         Returns: {
           id: string
           nombre: string
           rol: string
         }[]
+      }
+      registrar_bitacora: {
+        Args: { p_accion: string; p_detalle?: string | null; p_pin: string }
+        Returns: undefined
+      }
+      caja_agregar_mesa: {
+        Args: { p_nombre: string; p_pin: string }
+        Returns: string
+      }
+      caja_solicitar_cuenta: {
+        Args: { p_cuenta: string; p_pin: string }
+        Returns: undefined
+      }
+      caja_cobrar_cuenta: {
+        Args: { p_cuenta: string; p_pagos: Json; p_pin: string; p_propina?: number }
+        Returns: number
+      }
+      caja_anular_cuenta: {
+        Args: { p_cuenta: string; p_motivo: string; p_pin: string }
+        Returns: undefined
+      }
+      cocina_cambiar_estado: {
+        Args: { p_comanda: string; p_estado: string; p_pin: string }
+        Returns: undefined
+      }
+      cocina_imprimir_comanda: {
+        Args: { p_comanda: string; p_pin: string }
+        Returns: string
       }
     }
     Enums: {

@@ -58,16 +58,16 @@ function Admin() {
   const { puede, empleado } = useSesion();
   const visibles = SECCIONES.filter((s) => (s.p === "solo-admin" ? empleado.rol === "admin" : puede(s.p)));
   return (
-    <main className="min-h-screen p-4 md:p-6">
+    <main className="min-h-dvh p-4 md:p-6">
       <header className="flex items-center gap-3 mb-4">
         <Link to="/" aria-label="Inicio"><ArrowLeft /></Link>
-        <h1 className="font-display text-5xl flex-1">Administración</h1>
+        <h1 className="font-display text-4xl sm:text-5xl flex-1">Administración</h1>
         <SesionBar />
       </header>
       {visibles.length === 0 ? <p className="text-muted-foreground">No tienes secciones asignadas.</p> : (
         <Tabs defaultValue={visibles[0]!.v}>
           <TabsList className="flex-wrap h-auto">
-            {visibles.map((s) => <TabsTrigger key={s.v} value={s.v}>{s.l}</TabsTrigger>)}
+            {visibles.map((s) => <TabsTrigger key={s.v} value={s.v} className="py-2">{s.l}</TabsTrigger>)}
           </TabsList>
           {visibles.map((s) => <TabsContent key={s.v} value={s.v}><s.C /></TabsContent>)}
         </Tabs>
@@ -112,12 +112,12 @@ function Resumen() {
       <div className={card}>
         <h3 className="font-display text-3xl mb-3">Ventas por mesero (hoy)</h3>
         {porMesero.size === 0 ? <p className="text-muted-foreground">Sin ventas cobradas hoy.</p> : (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto"><table className="w-full text-left">
             <thead className="text-sm text-muted-foreground"><tr><th>Mesero</th><th className="text-right">Comandas</th><th className="text-right">Ventas</th><th className="text-right">Propinas</th></tr></thead>
             <tbody>{[...porMesero.entries()].sort((a, b) => b[1].ventas - a[1].ventas).map(([n, t]) => (
               <tr key={n} className="border-t"><td className="py-2">{n}</td><td className="text-right">{t.comandas}</td><td className="text-right tabular-nums">{mxn(t.ventas)}</td><td className="text-right tabular-nums">{mxn(t.propinas)}</td></tr>
             ))}</tbody>
-          </table>
+          </table></div>
         )}
         <p className="text-xs text-muted-foreground mt-2">La propina se asigna al mesero que abrió la cuenta.</p>
       </div>
@@ -267,7 +267,7 @@ function Empleados() {
     queryFn: async () => (await supabase.from("empleados").select("id,nombre,rol,activo").order("nombre")).data ?? [],
   });
   const selRol = (v: Rol, on: (r: Rol) => void) => (
-    <select value={v} onChange={(e) => on(e.target.value as Rol)} className="h-9 rounded-md border bg-background px-2 text-sm">
+    <select value={v} onChange={(e) => on(e.target.value as Rol)} className="h-11 md:h-9 rounded-md border bg-background px-2 text-base md:text-sm">
       {ROLES.map((r) => <option key={r} value={r}>{ETIQUETA_ROL[r]}</option>)}
     </select>
   );
@@ -317,7 +317,7 @@ function Turnos() {
         <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-auto" />
       </div>
       {q.data?.length === 0 ? <p className="text-muted-foreground">Sin entradas registradas.</p> : (
-        <table className="w-full text-left">
+        <div className="overflow-x-auto"><table className="w-full text-left">
           <thead className="text-sm text-muted-foreground"><tr><th>Empleado</th><th>Entrada</th><th>Salida</th><th className="text-right">Horas</th></tr></thead>
           <tbody>{q.data?.map((t) => {
             const e = t.empleados as { nombre: string; rol: Rol } | null;
@@ -330,7 +330,7 @@ function Turnos() {
               </tr>
             );
           })}</tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );
@@ -341,7 +341,7 @@ function Permisos() {
   const q = useRolPermisos();
   const [edit, setEdit] = useState<Record<string, string[]>>({});
   return (
-    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+    <div className="mt-4 grid gap-4 md:grid-cols-3">
       {ROLES_CONFIGURABLES.map((rol) => {
         const actuales = q.data?.find((r) => r.rol === rol)?.permisos ?? [];
         const sel = edit[rol] ?? actuales;
@@ -367,7 +367,7 @@ function Permisos() {
           </div>
         );
       })}
-      <p className="text-xs text-muted-foreground lg:col-span-3">El Administrador siempre tiene todos los permisos. Los cambios aplican al momento en todas las pantallas.</p>
+      <p className="text-xs text-muted-foreground md:col-span-3">El Administrador siempre tiene todos los permisos. Los cambios aplican al momento en todas las pantallas.</p>
     </div>
   );
 }
@@ -410,7 +410,7 @@ function Bitacora() {
     URL.revokeObjectURL(a.href);
   }
 
-  const sel = "h-9 rounded-md border bg-background px-2 text-sm";
+  const sel = "h-11 md:h-9 rounded-md border bg-background px-2 text-base md:text-sm";
   return (
     <div className={cn(card, "mt-4")}>
       <div className="flex flex-wrap items-end gap-3 mb-3">
@@ -432,7 +432,7 @@ function Bitacora() {
         <Button variant="secondary" disabled={filas.length === 0} onClick={exportar}><Download /> Exportar CSV</Button>
       </div>
       <p className="text-xs text-muted-foreground mb-2">{filas.length} registros</p>
-      <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto"><table className="w-full text-left text-sm">
         <thead className="text-muted-foreground"><tr><th>Hora</th><th>Empleado</th><th>Acción</th><th>Detalle</th></tr></thead>
         <tbody>{filas.map((b) => (
           <tr key={b.id} className="border-t align-top">
@@ -442,7 +442,7 @@ function Bitacora() {
             <td className="text-muted-foreground">{b.detalle}</td>
           </tr>
         ))}</tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
