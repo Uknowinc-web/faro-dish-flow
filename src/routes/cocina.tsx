@@ -52,7 +52,7 @@ function Cocina() {
   const [sonido, setSonido] = useState(false);
   const [flash, setFlash] = useState(false);
   const [ticket, setTicket] = useState<DatosTicket | null>(null);
-  const { pin } = useSesion();
+  const { token } = useSesion();
   const conectado = useConexion();
   const sonidoRef = useRef(sonido);
   sonidoRef.current = sonido;
@@ -89,7 +89,7 @@ function Cocina() {
 
   async function avanzar(id: string, numero: number, estado: string) {
     // El servidor valida el PIN, el permiso de cocina y la transición de estado.
-    const r = await ejecutar("cocina_cambiar_estado", { p_pin: pin ?? "", p_comanda: id, p_estado: estado }, {
+    const r = await ejecutar("cocina_cambiar_estado", { p_pin: token ?? "", p_comanda: id, p_estado: estado }, {
       etiqueta: `Comanda #${numero}`,
       resumen: `Cambiar a ${etiquetaEstado[estado] ?? estado}`,
     });
@@ -100,7 +100,7 @@ function Cocina() {
 
   async function imprimir(c: NonNullable<typeof q.data>[number]) {
     const mesa = (c.mesas as { nombre: string } | null)?.nombre ?? "";
-    const r = await ejecutar("cocina_imprimir_comanda", { p_pin: pin ?? "", p_comanda: c.id }, {
+    const r = await ejecutar("cocina_imprimir_comanda", { p_pin: token ?? "", p_comanda: c.id }, {
       etiqueta: `Ticket #${c.numero} · ${mesa}`,
       resumen: "Imprimir ticket y pasar a en preparación",
     });
