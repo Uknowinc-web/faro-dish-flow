@@ -509,6 +509,10 @@ export type Database = {
         Args: { p_comanda: string; p_estado: string; p_pin: string }
         Returns: undefined
       }
+      cocina_imprimir_comanda: {
+        Args: { p_comanda: string; p_pin: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
