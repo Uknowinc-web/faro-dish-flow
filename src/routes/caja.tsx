@@ -214,7 +214,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
               </>
             );
           })()}
-        </div>
+        </div>}
         {puede("caja.anular") && <Button variant="ghost" className="w-full text-destructive" onClick={() => setAnular(true)}><XCircle /> Anular cuenta</Button>}
       </div>
       <Dialog open={anular} onOpenChange={setAnular}>
