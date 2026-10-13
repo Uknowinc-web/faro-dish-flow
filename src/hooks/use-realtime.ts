@@ -21,6 +21,7 @@ export function useRealtime(onComandaNueva?: () => void) {
       .on("postgres_changes", { event: "*", schema: "public", table: "turnos" }, () => qc.invalidateQueries({ queryKey: ["turnos"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "empleados" }, () => qc.invalidateQueries({ queryKey: ["empleados"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "caja_fondos" }, () => qc.invalidateQueries())
+      .on("postgres_changes", { event: "*", schema: "public", table: "rol_permisos" }, () => qc.invalidateQueries({ queryKey: ["rol-permisos"] }))
       .subscribe();
     return () => {
       supabase.removeChannel(ch);

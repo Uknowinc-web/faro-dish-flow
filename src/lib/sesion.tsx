@@ -2,12 +2,14 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Delete, LogIn, LogOut, UserRound } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { tienePermiso } from "@/lib/permisos";
 import { Button } from "@/components/ui/button";
 
 export type Rol = "mesero" | "cocina" | "caja" | "admin";
 export type Empleado = { id: string; nombre: string; rol: Rol };
-type Sesion = { empleado: Empleado; pin: string | null; salir: () => void };
+type Sesion = { empleado: Empleado; pin: string | null; salir: () => void; puede: (permiso: string) => boolean };
 
 const Ctx = createContext<Sesion | null>(null);
 
@@ -30,14 +32,17 @@ export function useBitacora() {
 
 export const ETIQUETA_ROL: Record<Rol, string> = { mesero: "Mesero", cocina: "Cocina", caja: "Caja", admin: "Administrador" };
 
-/** Admin can enter every station; others only stations listing their role. */
-export function puedeEntrar(rol: Rol, permitidos: Rol[]) {
-  return rol === "admin" || permitidos.includes(rol);
+/** Role permissions as configured by the admin (live-updated via realtime). */
+export function useRolPermisos() {
+  return useQuery({
+    queryKey: ["rol-permisos"],
+    queryFn: async () => (await supabase.from("rol_permisos").select("rol,permisos")).data ?? [],
+  });
 }
 
-export function PinGate({ estacion, roles, children }: { estacion: string; roles: Rol[]; children: ReactNode }) {
+export function PinGate({ estacion, permiso, guardaPin = false, children }: { estacion: string; permiso: string; guardaPin?: boolean; children: ReactNode }) {
   const key = `faro-sesion-${estacion}`;
-  const guardaPin = roles.length === 1 && roles[0] === "admin";
+  const permisos = useRolPermisos();
   const [sesion, setSesion] = useState<{ empleado: Empleado; pin: string | null } | null | undefined>(undefined);
 
   useEffect(() => {
@@ -50,13 +55,22 @@ export function PinGate({ estacion, roles, children }: { estacion: string; roles
     setSesion(null);
   }, [key, guardaPin]);
 
-  if (sesion === undefined) return null;
+  if (sesion === undefined || !permisos.data) return null;
+  const puede = (k: string) => (sesion ? tienePermiso(sesion.empleado.rol, permisos.data, k) : false);
+  if (sesion && !puede(permiso)) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-xl">{sesion.empleado.nombre} ya no tiene acceso a {estacion}.</p>
+        <Button onClick={salir}>Cambiar usuario</Button>
+      </main>
+    );
+  }
   if (!sesion) {
     return (
       <PinPad
         titulo={estacion}
         onEntrar={(empleado, pin) => {
-          if (!puedeEntrar(empleado.rol, roles)) { toast.error(`${empleado.nombre} no tiene acceso a ${estacion}`); return; }
+          if (!tienePermiso(empleado.rol, permisos.data, permiso)) { toast.error(`${empleado.nombre} no tiene acceso a ${estacion}`); return; }
           const s = { empleado, pin: guardaPin ? pin : null };
           (guardaPin ? sessionStorage : localStorage).setItem(key, JSON.stringify(s));
           setSesion(s);
@@ -64,7 +78,7 @@ export function PinGate({ estacion, roles, children }: { estacion: string; roles
       />
     );
   }
-  return <Ctx.Provider value={{ ...sesion, salir }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ ...sesion, salir, puede }}>{children}</Ctx.Provider>;
 }
 
 export function SesionBar() {

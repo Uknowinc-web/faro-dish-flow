@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/use-realtime";
 import { useCatalogo } from "@/hooks/use-catalogo";
@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Corte } from "@/components/corte";
 import { CATEGORIAS, PRODUCTOS, horaMty, hoyMonterrey, mxn } from "@/lib/catalogo";
-import { ETIQUETA_ROL, PinGate, SesionBar, useSesion, type Rol } from "@/lib/sesion";
+import { ETIQUETA_ROL, PinGate, SesionBar, useRolPermisos, useSesion, type Rol } from "@/lib/sesion";
+import { GRUPOS_PERMISOS, ROLES_CONFIGURABLES, bitacoraCsv } from "@/lib/permisos";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/admin")({
       { property: "og:description", content: "Panel de administración: productos, mesas, empleados, cuentas, turnos y bitácora." },
     ],
   }),
-  component: () => <PinGate estacion="administración" roles={["admin"]}><Admin /></PinGate>,
+  component: () => <PinGate estacion="administración" permiso="estacion.admin" guardaPin><Admin /></PinGate>,
 });
 
 /** Calls an admin database function with the signed-in admin's PIN. */
@@ -41,8 +42,21 @@ function useAdminRpc() {
   };
 }
 
+const SECCIONES = [
+  { v: "resumen", l: "Resumen", p: "admin.resumen", C: () => <Resumen /> },
+  { v: "cuentas", l: "Cuentas", p: "admin.cuentas", C: () => <Cuentas /> },
+  { v: "productos", l: "Productos", p: "admin.productos", C: () => <Productos /> },
+  { v: "mesas", l: "Mesas", p: "admin.mesas", C: () => <Mesas /> },
+  { v: "empleados", l: "Empleados", p: "admin.empleados", C: () => <Empleados /> },
+  { v: "turnos", l: "Turnos", p: "admin.turnos", C: () => <Turnos /> },
+  { v: "bitacora", l: "Bitácora", p: "admin.bitacora", C: () => <Bitacora /> },
+  { v: "permisos", l: "Permisos", p: "solo-admin", C: () => <Permisos /> },
+] as const;
+
 function Admin() {
   useRealtime();
+  const { puede, empleado } = useSesion();
+  const visibles = SECCIONES.filter((s) => (s.p === "solo-admin" ? empleado.rol === "admin" : puede(s.p)));
   return (
     <main className="min-h-screen p-4 md:p-6">
       <header className="flex items-center gap-3 mb-4">
@@ -50,20 +64,14 @@ function Admin() {
         <h1 className="font-display text-5xl flex-1">Administración</h1>
         <SesionBar />
       </header>
-      <Tabs defaultValue="resumen">
-        <TabsList className="flex-wrap h-auto">
-          {([["resumen", "Resumen"], ["cuentas", "Cuentas"], ["productos", "Productos"], ["mesas", "Mesas"], ["empleados", "Empleados"], ["turnos", "Turnos"], ["bitacora", "Bitácora"]] as const).map(([v, l]) => (
-            <TabsTrigger key={v} value={v}>{l}</TabsTrigger>
-          ))}
-        </TabsList>
-        <TabsContent value="resumen"><Resumen /></TabsContent>
-        <TabsContent value="cuentas"><Cuentas /></TabsContent>
-        <TabsContent value="productos"><Productos /></TabsContent>
-        <TabsContent value="mesas"><Mesas /></TabsContent>
-        <TabsContent value="empleados"><Empleados /></TabsContent>
-        <TabsContent value="turnos"><Turnos /></TabsContent>
-        <TabsContent value="bitacora"><Bitacora /></TabsContent>
-      </Tabs>
+      {visibles.length === 0 ? <p className="text-muted-foreground">No tienes secciones asignadas.</p> : (
+        <Tabs defaultValue={visibles[0]!.v}>
+          <TabsList className="flex-wrap h-auto">
+            {visibles.map((s) => <TabsTrigger key={s.v} value={s.v}>{s.l}</TabsTrigger>)}
+          </TabsList>
+          {visibles.map((s) => <TabsContent key={s.v} value={s.v}><s.C /></TabsContent>)}
+        </Tabs>
+      )}
     </main>
   );
 }
@@ -72,6 +80,7 @@ const card = "rounded-2xl border bg-card p-5";
 
 function Resumen() {
   const rpc = useAdminRpc();
+  const { puede } = useSesion();
   const [fondo, setFondo] = useState("");
   const fecha = hoyMonterrey();
   const vm = useQuery({
@@ -94,11 +103,11 @@ function Resumen() {
 
   return (
     <div className="space-y-6 mt-4">
-      <div className={cn(card, "flex flex-wrap items-center gap-3")}>
+      {puede("admin.fondo") && <div className={cn(card, "flex flex-wrap items-center gap-3")}>
         <span className="text-sm text-muted-foreground">Fondo inicial de caja de hoy</span>
         <Input type="number" min="0" className="w-40" value={fondo} onChange={(e) => setFondo(e.target.value)} placeholder="$0" />
         <Button disabled={fondo === ""} onClick={async () => { if (await rpc("admin_fondo_caja", { p_fecha: fecha, p_monto: Number(fondo) }, "Fondo guardado")) setFondo(""); }}><Save /> Guardar fondo</Button>
-      </div>
+      </div>}
       <Corte />
       <div className={card}>
         <h3 className="font-display text-3xl mb-3">Ventas por mesero (hoy)</h3>
@@ -327,17 +336,102 @@ function Turnos() {
   );
 }
 
+function Permisos() {
+  const rpc = useAdminRpc();
+  const q = useRolPermisos();
+  const [edit, setEdit] = useState<Record<string, string[]>>({});
+  return (
+    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      {ROLES_CONFIGURABLES.map((rol) => {
+        const actuales = q.data?.find((r) => r.rol === rol)?.permisos ?? [];
+        const sel = edit[rol] ?? actuales;
+        const cambiado = edit[rol] !== undefined && [...sel].sort().join() !== [...actuales].sort().join();
+        const toggle = (k: string) => setEdit((e) => ({ ...e, [rol]: sel.includes(k) ? sel.filter((x) => x !== k) : [...sel, k] }));
+        return (
+          <div key={rol} className={card}>
+            <h3 className="font-display text-3xl">{ETIQUETA_ROL[rol]}</h3>
+            {GRUPOS_PERMISOS.map((g) => (
+              <div key={g.nombre} className="mt-3">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">{g.nombre}</p>
+                {g.permisos.map((p) => (
+                  <label key={p.key} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                    <input type="checkbox" className="size-4 accent-primary" checked={sel.includes(p.key)} onChange={() => toggle(p.key)} />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+            ))}
+            <Button className="w-full mt-4" disabled={!cambiado} onClick={async () => {
+              if (await rpc("admin_guardar_permisos", { p_rol: rol, p_permisos: sel }, `Permisos de ${ETIQUETA_ROL[rol]} guardados`)) setEdit((e) => { const n = { ...e }; delete n[rol]; return n; });
+            }}><Save /> Guardar</Button>
+          </div>
+        );
+      })}
+      <p className="text-xs text-muted-foreground lg:col-span-3">El Administrador siempre tiene todos los permisos. Los cambios aplican al momento en todas las pantallas.</p>
+    </div>
+  );
+}
+
+/** Monterrey has no daylight saving: local midnight is 06:00 UTC. */
+const inicioMty = (fecha: string) => new Date(`${fecha}T00:00:00-06:00`).toISOString();
+
 function Bitacora() {
-  const [filtro, setFiltro] = useState("");
-  const q = useQuery({
-    queryKey: ["bitacora"],
-    queryFn: async () => (await supabase.from("bitacora").select("id,empleado_nombre,accion,detalle,created_at").order("created_at", { ascending: false }).limit(300)).data ?? [],
+  const hoy = hoyMonterrey();
+  const [desde, setDesde] = useState(hoy);
+  const [hasta, setHasta] = useState(hoy);
+  const [empleado, setEmpleado] = useState("");
+  const [accion, setAccion] = useState("");
+  const [texto, setTexto] = useState("");
+  const empleados = useQuery({
+    queryKey: ["empleados"],
+    queryFn: async () => (await supabase.from("empleados").select("id,nombre,rol,activo").order("nombre")).data ?? [],
   });
-  const f = filtro.toLowerCase();
-  const filas = (q.data ?? []).filter((b) => !f || [b.empleado_nombre, b.accion, b.detalle].some((x) => x?.toLowerCase().includes(f)));
+  const q = useQuery({
+    queryKey: ["bitacora", desde, hasta, empleado],
+    queryFn: async () => {
+      let r = supabase.from("bitacora").select("id,empleado_nombre,accion,detalle,created_at")
+        .gte("created_at", inicioMty(desde))
+        .lt("created_at", new Date(new Date(inicioMty(hasta)).getTime() + 86400_000).toISOString())
+        .order("created_at", { ascending: false }).limit(5000);
+      if (empleado) r = r.eq("empleado_id", empleado);
+      return (await r).data ?? [];
+    },
+  });
+  const acciones = [...new Set((q.data ?? []).map((b) => b.accion))].sort();
+  const t = texto.toLowerCase();
+  const filas = (q.data ?? []).filter((b) => (!accion || b.accion === accion) && (!t || [b.empleado_nombre, b.detalle].some((x) => x?.toLowerCase().includes(t))));
+
+  function exportar() {
+    const blob = new Blob([bitacoraCsv(filas)], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `bitacora_${desde}_a_${hasta}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  const sel = "h-9 rounded-md border bg-background px-2 text-sm";
   return (
     <div className={cn(card, "mt-4")}>
-      <Input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Buscar por empleado, acción o mesa" className="max-w-sm mb-3" />
+      <div className="flex flex-wrap items-end gap-3 mb-3">
+        <label className="text-xs text-muted-foreground">Desde<Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-auto" /></label>
+        <label className="text-xs text-muted-foreground">Hasta<Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-auto" /></label>
+        <label className="text-xs text-muted-foreground flex flex-col">Empleado
+          <select className={sel} value={empleado} onChange={(e) => setEmpleado(e.target.value)} aria-label="Empleado">
+            <option value="">Todos</option>
+            {empleados.data?.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+          </select>
+        </label>
+        <label className="text-xs text-muted-foreground flex flex-col">Acción
+          <select className={sel} value={accion} onChange={(e) => setAccion(e.target.value)} aria-label="Acción">
+            <option value="">Todas</option>
+            {acciones.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </label>
+        <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar en detalle (ej. Mesa 3)" className="max-w-xs" />
+        <Button variant="secondary" disabled={filas.length === 0} onClick={exportar}><Download /> Exportar CSV</Button>
+      </div>
+      <p className="text-xs text-muted-foreground mb-2">{filas.length} registros</p>
       <table className="w-full text-left text-sm">
         <thead className="text-muted-foreground"><tr><th>Hora</th><th>Empleado</th><th>Acción</th><th>Detalle</th></tr></thead>
         <tbody>{filas.map((b) => (

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { horaMty, mxn } from "@/lib/catalogo";
 import { resumenPago } from "@/lib/pagos";
 import { Corte } from "@/components/corte";
-import { PinGate, SesionBar, useBitacora } from "@/lib/sesion";
+import { PinGate, SesionBar, useBitacora, useSesion } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/caja")({
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/caja")({
       { property: "og:description", content: "Cuentas activas, cobro y corte de caja diario." },
     ],
   }),
-  component: () => <PinGate estacion="caja" roles={["caja"]}><Caja /></PinGate>,
+  component: () => <PinGate estacion="caja" permiso="estacion.caja"><Caja /></PinGate>,
 });
 
 const estiloMesa: Record<string, string> = {
@@ -36,6 +36,7 @@ const estiloMesa: Record<string, string> = {
 
 function Caja() {
   useRealtime();
+  const { puede } = useSesion();
   return (
     <main className="min-h-screen p-4 md:p-6">
       <header className="flex items-center gap-3 mb-4">
@@ -44,15 +45,16 @@ function Caja() {
         <SesionBar />
       </header>
       <Tabs defaultValue="mesas">
-        <TabsList><TabsTrigger value="mesas">Mesas activas</TabsTrigger><TabsTrigger value="corte">Corte de caja</TabsTrigger></TabsList>
+        <TabsList><TabsTrigger value="mesas">Mesas activas</TabsTrigger>{puede("caja.corte") && <TabsTrigger value="corte">Corte de caja</TabsTrigger>}</TabsList>
         <TabsContent value="mesas"><Mesas /></TabsContent>
-        <TabsContent value="corte"><Corte /></TabsContent>
+        {puede("caja.corte") && <TabsContent value="corte"><Corte /></TabsContent>}
       </Tabs>
     </main>
   );
 }
 
 function Mesas() {
+  const { puede } = useSesion();
   const [sel, setSel] = useState<string | null>(null);
   const [nueva, setNueva] = useState("");
   const mesas = useQuery({
@@ -92,10 +94,10 @@ function Mesas() {
             </button>
           ))}
         </div>
-        <div className="flex gap-2 mt-4 max-w-sm">
+        {puede("caja.agregar_mesa") && <div className="flex gap-2 mt-4 max-w-sm">
           <Input value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Nueva mesa (ej. Terraza 1)" />
           <Button onClick={agregarMesa}><Plus /> Agregar</Button>
-        </div>
+        </div>}
       </div>
       <aside className="rounded-2xl border bg-card p-5 h-fit lg:sticky lg:top-4">
         {actual?.cuentaId ? <Cuenta cuentaId={actual.cuentaId} mesa={actual.nombre} estado={actual.estado} onDone={() => setSel(null)} />
@@ -107,6 +109,7 @@ function Mesas() {
 
 function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: string; estado: string; onDone: () => void }) {
   const log = useBitacora();
+  const { puede } = useSesion();
   const [anular, setAnular] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -159,10 +162,10 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
         <span className="font-display text-5xl text-primary">{mxn(total)}</span>
       </div>
       <div className="mt-4 space-y-3">
-        {estado !== "por_cobrar" && (
+        {estado !== "por_cobrar" && puede("caja.por_cobrar") && (
           <Button variant="secondary" className="w-full h-12" disabled={busy} onClick={() => rpc("solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
         )}
-        <div className="rounded-xl border p-3 space-y-3">
+        {puede("caja.cobrar") && <div className="rounded-xl border p-3 space-y-3">
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted-foreground w-24">Propina</label>
             <Input type="number" min="0" inputMode="decimal" value={propina} onChange={(e) => setPropina(e.target.value)} placeholder="$0" />
@@ -211,8 +214,8 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
               </>
             );
           })()}
-        </div>
-        <Button variant="ghost" className="w-full text-destructive" onClick={() => setAnular(true)}><XCircle /> Anular cuenta</Button>
+        </div>}
+        {puede("caja.anular") && <Button variant="ghost" className="w-full text-destructive" onClick={() => setAnular(true)}><XCircle /> Anular cuenta</Button>}
       </div>
       <Dialog open={anular} onOpenChange={setAnular}>
         <DialogContent>

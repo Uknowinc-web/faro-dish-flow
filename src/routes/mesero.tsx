@@ -22,7 +22,7 @@ export const Route = createFileRoute("/mesero")({
       { property: "og:description", content: "Toma de comandas para meseros de Tacos el Faro." },
     ],
   }),
-  component: () => <PinGate estacion="mesero" roles={["mesero"]}><Mesero /></PinGate>,
+  component: () => <PinGate estacion="mesero" permiso="estacion.mesero"><Mesero /></PinGate>,
 });
 
 type Linea = { key: string; producto: Producto; cantidad: number; mods: ModSeleccionado[]; notas: string };

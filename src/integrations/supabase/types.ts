@@ -302,6 +302,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rol_permisos: {
+        Row: {
+          permisos: string[]
+          rol: string
+          updated_at: string
+        }
+        Insert: {
+          permisos?: string[]
+          rol: string
+          updated_at?: string
+        }
+        Update: {
+          permisos?: string[]
+          rol?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       turnos: {
         Row: {
           empleado_id: string
@@ -370,6 +388,23 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      _permiso: {
+        Args: { p_permiso: string; p_pin: string }
+        Returns: {
+          activo: boolean
+          created_at: string
+          id: string
+          nombre: string
+          pin_hash: string
+          rol: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "empleados"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_ajustar_producto: {
         Args: {
           p_admin_pin: string
@@ -406,6 +441,10 @@ export type Database = {
           p_id: string
           p_nombre: string
         }
+        Returns: undefined
+      }
+      admin_guardar_permisos: {
+        Args: { p_admin_pin: string; p_permisos: string[]; p_rol: string }
         Returns: undefined
       }
       admin_reabrir_cuenta: {
