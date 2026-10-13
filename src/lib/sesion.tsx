@@ -70,7 +70,7 @@ export function PinGate({ estacion, permiso, guardaPin = true, children }: { est
   const puede = (k: string) => (sesion ? tienePermiso(sesion.empleado.rol, permisos.data, k) : false);
   if (sesion && !puede(permiso)) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+      <main className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 text-center">
         <p className="text-xl">{sesion.empleado.nombre} ya no tiene acceso a {estacion}.</p>
         <Button onClick={salir}>Cambiar usuario</Button>
       </main>
@@ -130,7 +130,7 @@ function PinPad({ titulo, onEntrar }: { titulo: string; onEntrar: (e: Empleado, 
 
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6">
+    <main className="min-h-dvh flex flex-col items-center justify-center px-6 py-8">
       <Link to="/" className="self-start flex items-center gap-1 text-muted-foreground mb-6"><ArrowLeft className="size-4" /> Inicio</Link>
       <p className="text-sm tracking-[0.3em] uppercase text-primary">Tacos el Faro</p>
       <h1 className="font-display text-6xl capitalize">{titulo}</h1>

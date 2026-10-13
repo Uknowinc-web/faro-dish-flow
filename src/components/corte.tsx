@@ -64,12 +64,12 @@ export function Corte() {
       <div className="rounded-2xl border bg-card p-5">
         <h3 className="font-display text-3xl mb-3">Top productos</h3>
         {ranking.length === 0 ? <p className="text-muted-foreground">Sin ventas en esta fecha.</p> : (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto"><table className="w-full text-left">
             <thead className="text-sm text-muted-foreground"><tr><th>Producto</th><th className="text-right">Piezas</th><th className="text-right">Monto</th></tr></thead>
             <tbody>{ranking.map(([n, t]) => (
               <tr key={n} className="border-t"><td className="py-2">{n}</td><td className="text-right">{t.cant}</td><td className="text-right tabular-nums">{mxn(t.monto)}</td></tr>
             ))}</tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

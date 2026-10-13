@@ -24,13 +24,13 @@ const roles = [
 
 function Inicio() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+    <main className="min-h-dvh flex flex-col items-center justify-center px-5 py-10 sm:px-6 sm:py-12">
       <p className="text-sm tracking-[0.3em] uppercase text-primary">Smart Restaurant Pro</p>
-      <h1 className="font-display text-7xl md:text-8xl leading-none mt-2">Tacos el Faro</h1>
+      <h1 className="font-display text-6xl sm:text-7xl md:text-8xl leading-none mt-2">Tacos el Faro</h1>
       <p className="text-muted-foreground mt-2">Carne asada · Monterrey</p>
-      <div className="grid gap-4 w-full max-w-5xl mt-10 md:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full max-w-5xl mt-10">
         {roles.map(({ to, titulo, desc, Icon }) => (
-          <Link key={to} to={to} className="group rounded-2xl border bg-card p-6 hover:border-primary transition-colors">
+          <Link key={to} to={to} className="group rounded-2xl border bg-card p-5 sm:p-6 hover:border-primary transition-colors">
             <Icon className="size-10 text-primary" />
             <h2 className="font-display text-4xl mt-4">{titulo}</h2>
             <p className="text-sm text-muted-foreground">{desc}</p>

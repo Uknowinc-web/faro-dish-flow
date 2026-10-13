@@ -80,10 +80,10 @@ function Cocina() {
   }
 
   return (
-    <main className={cn("min-h-screen p-4 transition-colors", flash && "bg-primary/20")}>
-      <header className="flex items-center gap-3 mb-4">
+    <main className={cn("min-h-dvh p-4 md:p-6 transition-colors", flash && "bg-primary/20")}>
+      <header className="flex flex-wrap items-center gap-3 mb-4">
         <Link to="/" aria-label="Inicio"><ArrowLeft /></Link>
-        <h1 className="font-display text-5xl flex-1">Cocina</h1>
+        <h1 className="font-display text-4xl sm:text-5xl flex-1">Cocina</h1>
         <SesionBar />
         <span className="text-muted-foreground">{q.data?.length ?? 0} en cola</span>
         <Button variant={sonido ? "default" : "secondary"} onClick={() => { setSonido(!sonido); if (!sonido) beep(); }}>

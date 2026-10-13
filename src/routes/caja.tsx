@@ -38,7 +38,7 @@ function Caja() {
   useRealtime();
   const { puede } = useSesion();
   return (
-    <main className="min-h-screen p-4 md:p-6">
+    <main className="min-h-dvh p-4 md:p-6">
       <header className="flex items-center gap-3 mb-4">
         <Link to="/" aria-label="Inicio"><ArrowLeft /></Link>
         <h1 className="font-display text-5xl flex-1">Caja</h1>
@@ -80,6 +80,14 @@ function Mesas() {
     mesas.refetch();
   }
 
+  function elegir(id: string) {
+    setSel(id);
+    // En celular y tablet vertical el panel de cuenta queda debajo de las mesas: lo traemos a la vista.
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      requestAnimationFrame(() => document.getElementById("cuenta-caja")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }
+
   const actual = mesas.data?.find((m) => m.id === sel);
 
   return (
@@ -87,7 +95,7 @@ function Mesas() {
       <div>
         <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-3">
           {mesas.data?.map((m) => (
-            <button key={m.id} onClick={() => setSel(m.id)} className={cn("rounded-xl border-2 bg-card p-4 h-28 text-left transition", estiloMesa[m.estado], sel === m.id && "ring-2 ring-ring")}>
+            <button key={m.id} onClick={() => elegir(m.id)} className={cn("rounded-xl border-2 bg-card p-4 h-28 text-left transition", estiloMesa[m.estado], sel === m.id && "ring-2 ring-ring")}>
               <p className="font-display text-2xl text-foreground">{m.nombre}</p>
               <p className="text-xs capitalize">{m.estado.replace("_", " ")}</p>
               {m.cuentaId && <p className="font-semibold text-foreground mt-1">{mxn(m.total)}</p>}
@@ -99,7 +107,7 @@ function Mesas() {
           <Button onClick={agregarMesa}><Plus /> Agregar</Button>
         </div>}
       </div>
-      <aside className="rounded-2xl border bg-card p-5 h-fit lg:sticky lg:top-4">
+      <aside id="cuenta-caja" className="scroll-mt-4 rounded-2xl border bg-card p-5 h-fit lg:sticky lg:top-4">
         {actual?.cuentaId ? <Cuenta cuentaId={actual.cuentaId} mesa={actual.nombre} estado={actual.estado} onDone={() => setSel(null)} />
           : <p className="text-muted-foreground text-center py-12">{actual ? `${actual.nombre} está disponible.` : "Selecciona una mesa con cuenta abierta."}</p>}
       </aside>
@@ -140,7 +148,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
         <h2 className="font-display text-4xl">{mesa}</h2>
         <span className="text-sm text-muted-foreground">{q.data?.length ?? 0} comandas</span>
       </div>
-      <div className="mt-4 space-y-2 max-h-[45vh] overflow-y-auto">
+      <div className="mt-4 space-y-2 max-h-[45dvh] overflow-y-auto">
         {q.data?.map((c) => (
           <div key={c.id}>
             <p className="text-xs text-muted-foreground">#{c.numero} · {horaMty(c.created_at)}</p>
