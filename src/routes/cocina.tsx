@@ -19,7 +19,7 @@ export const Route = createFileRoute("/cocina")({
       { property: "og:description", content: "Pantalla de comandas de cocina en tiempo real." },
     ],
   }),
-  component: () => <PinGate estacion="cocina" roles={["cocina"]}><Cocina /></PinGate>,
+  component: () => <PinGate estacion="cocina" permiso="estacion.cocina"><Cocina /></PinGate>,
 });
 
 const siguiente: Record<string, { estado: string; label: string; cls: string }> = {
