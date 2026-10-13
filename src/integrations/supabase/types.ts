@@ -197,6 +197,7 @@ export type Database = {
       }
       empleados: {
         Row: {
+          pin_actualizado: boolean
           activo: boolean
           created_at: string
           id: string
@@ -205,6 +206,7 @@ export type Database = {
           rol: string
         }
         Insert: {
+          pin_actualizado?: boolean
           activo?: boolean
           created_at?: string
           id?: string
@@ -213,6 +215,7 @@ export type Database = {
           rol: string
         }
         Update: {
+          pin_actualizado?: boolean
           activo?: boolean
           created_at?: string
           id?: string
@@ -484,6 +487,19 @@ export type Database = {
           nombre: string
           rol: string
         }[]
+      }
+      iniciar_sesion_pin: {
+        Args: { p_dispositivo?: string; p_pin: string }
+        Returns: {
+          id: string
+          nombre: string
+          rol: string
+          token: string
+        }[]
+      }
+      cerrar_sesion: {
+        Args: { p_token: string }
+        Returns: undefined
       }
       registrar_bitacora: {
         Args: { p_accion: string; p_detalle?: string | null; p_pin: string }

@@ -55,7 +55,7 @@ function Caja() {
 }
 
 function Mesas() {
-  const { puede, pin } = useSesion();
+  const { puede, token } = useSesion();
   const conectado = useConexion();
   const [sel, setSel] = useState<string | null>(null);
   const [nueva, setNueva] = useState("");
@@ -76,7 +76,7 @@ function Mesas() {
 
   async function agregarMesa() {
     if (!nueva.trim()) return;
-    const { error } = await supabase.rpc("caja_agregar_mesa", { p_pin: pin ?? "", p_nombre: nueva.trim() });
+    const { error } = await supabase.rpc("caja_agregar_mesa", { p_pin: token ?? "", p_nombre: nueva.trim() });
     if (error) { toast.error(error.code === "23505" ? "Ya existe esa mesa" : error.message); return; }
     setNueva("");
     mesas.refetch();
@@ -118,7 +118,7 @@ function Mesas() {
 }
 
 function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: string; estado: string; onDone: () => void }) {
-  const { puede, pin } = useSesion();
+  const { puede, token } = useSesion();
   const conectado = useConexion();
   const [anular, setAnular] = useState(false);
   const [motivo, setMotivo] = useState("");
@@ -138,7 +138,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
   async function rpc(fn: "caja_solicitar_cuenta" | "caja_anular_cuenta", args: Record<string, string>, ok: string) {
     setBusy(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.rpc(fn, { p_pin: pin ?? "", ...args } as any);
+    const { error } = await supabase.rpc(fn, { p_pin: token ?? "", ...args } as any);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(ok);
@@ -212,7 +212,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
                       { metodo: "clip", monto: Number(montoClip) || 0 },
                     ].filter((p) => p.monto > 0);
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const { error } = await supabase.rpc("caja_cobrar_cuenta", { p_pin: pin ?? "", p_cuenta: cuentaId, p_pagos: pagos, p_propina: Number(propina) || 0 } as any);
+                    const { error } = await supabase.rpc("caja_cobrar_cuenta", { p_pin: token ?? "", p_cuenta: cuentaId, p_pagos: pagos, p_propina: Number(propina) || 0 } as any);
                     setBusy(false);
                     if (error) { toast.error(error.message); return; }
                     toast.success(r.mixto ? "Cobrado (pago mixto)" : "Cuenta cobrada");

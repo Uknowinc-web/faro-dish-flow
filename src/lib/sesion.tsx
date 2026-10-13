@@ -5,11 +5,13 @@ import { ArrowLeft, Delete, LogIn, LogOut, UserRound } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tienePermiso } from "@/lib/permisos";
+import { pinIngresoValido } from "@/lib/pin";
 import { Button } from "@/components/ui/button";
 
 export type Rol = "mesero" | "cocina" | "caja" | "admin";
 export type Empleado = { id: string; nombre: string; rol: Rol };
-type Sesion = { empleado: Empleado; pin: string | null; salir: () => void; puede: (permiso: string) => boolean };
+/** `token` es la sesión del dispositivo (no el PIN). Se revoca al salir o caduca a las 12 h. */
+type Sesion = { empleado: Empleado; token: string | null; salir: () => void; puede: (permiso: string) => boolean };
 
 const Ctx = createContext<Sesion | null>(null);
 
@@ -29,13 +31,13 @@ export function useSesion() {
 
 /** Writes one line to the action log under the signed-in employee. */
 export function useBitacora() {
-  const { pin } = useSesion();
+  const { token } = useSesion();
   return useCallback(
     (accion: string, detalle?: string) => {
-      if (!pin) return;
-      void supabase.rpc("registrar_bitacora", { p_pin: pin, p_accion: accion, p_detalle: detalle ?? null });
+      if (!token) return;
+      void supabase.rpc("registrar_bitacora", { p_pin: token, p_accion: accion, p_detalle: detalle ?? null });
     },
-    [pin],
+    [token],
   );
 }
 
@@ -52,19 +54,20 @@ export function useRolPermisos() {
 export function PinGate({ estacion, permiso, guardaPin = true, children }: { estacion: string; permiso: string; guardaPin?: boolean; children: ReactNode }) {
   const key = `faro-sesion-${estacion}`;
   const permisos = useRolPermisos();
-  const [sesion, setSesion] = useState<{ empleado: Empleado; pin: string | null } | null | undefined>(undefined);
+  const [sesion, setSesion] = useState<{ empleado: Empleado; token: string | null } | null | undefined>(undefined);
 
   useEffect(() => {
     const raw = (guardaPin ? sessionStorage : localStorage).getItem(key);
     const s = raw ? JSON.parse(raw) : null;
-    // Sesiones guardadas sin PIN (versión anterior) deben volver a iniciar sesión.
-    setSesion(s?.pin ? s : null);
+    // Sesiones guardadas antes del token (con PIN) deben volver a iniciar sesión.
+    setSesion(s?.token ? s : null);
   }, [key, guardaPin]);
 
   const salir = useCallback(() => {
+    if (sesion?.token) void supabase.rpc("cerrar_sesion", { p_token: sesion.token });
     (guardaPin ? sessionStorage : localStorage).removeItem(key);
     setSesion(null);
-  }, [key, guardaPin]);
+  }, [key, guardaPin, sesion]);
 
   if (sesion === undefined || !permisos.data) return null;
   const puede = (k: string) => (sesion ? tienePermiso(sesion.empleado.rol, permisos.data, k) : false);
@@ -80,9 +83,9 @@ export function PinGate({ estacion, permiso, guardaPin = true, children }: { est
     return (
       <PinPad
         titulo={estacion}
-        onEntrar={(empleado, pin) => {
+        onEntrar={(empleado, token) => {
           if (!tienePermiso(empleado.rol, permisos.data, permiso)) { toast.error(`${empleado.nombre} no tiene acceso a ${estacion}`); return; }
-          const s = { empleado, pin: guardaPin ? pin : null };
+          const s = { empleado, token: guardaPin ? token : null };
           (guardaPin ? sessionStorage : localStorage).setItem(key, JSON.stringify(s));
           setSesion(s);
         }}
@@ -103,21 +106,22 @@ export function SesionBar() {
   );
 }
 
-function PinPad({ titulo, onEntrar }: { titulo: string; onEntrar: (e: Empleado, pin: string) => void }) {
+function PinPad({ titulo, onEntrar }: { titulo: string; onEntrar: (e: Empleado, token: string) => void }) {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function verificar(): Promise<Empleado | null> {
-    const { data, error } = await supabase.rpc("verificar_pin", { p_pin: pin, p_dispositivo: dispositivoId() });
+  async function verificar(): Promise<{ empleado: Empleado; token: string } | null> {
+    const { data, error } = await supabase.rpc("iniciar_sesion_pin", { p_pin: pin, p_dispositivo: dispositivoId() });
     if (error) { toast.error(error.message.includes("Demasiados") ? error.message : "PIN incorrecto"); setPin(""); return null; }
-    if (!data?.[0]) { toast.error("PIN incorrecto"); setPin(""); return null; }
-    return data[0] as Empleado;
+    const r = data?.[0];
+    if (!r) { toast.error("PIN incorrecto"); setPin(""); return null; }
+    return { empleado: { id: r.id, nombre: r.nombre, rol: r.rol as Rol }, token: r.token };
   }
   async function entrar() {
     setBusy(true);
-    const e = await verificar();
+    const s = await verificar();
     setBusy(false);
-    if (e) onEntrar(e, pin);
+    if (s) onEntrar(s.empleado, s.token);
   }
   async function turno(tipo: "entrada" | "salida") {
     setBusy(true);
@@ -136,7 +140,7 @@ function PinPad({ titulo, onEntrar }: { titulo: string; onEntrar: (e: Empleado, 
       <h1 className="font-display text-6xl capitalize">{titulo}</h1>
       <p className="text-muted-foreground mt-1">Ingresa tu PIN</p>
       <div className="flex gap-3 my-6 h-6">
-        {Array.from({ length: Math.max(4, pin.length) }).map((_, i) => (
+        {Array.from({ length: 6 }).map((_, i) => (
           <span key={i} className={`size-4 rounded-full border-2 border-primary ${i < pin.length ? "bg-primary" : ""}`} />
         ))}
       </div>
@@ -148,10 +152,10 @@ function PinPad({ titulo, onEntrar }: { titulo: string; onEntrar: (e: Empleado, 
           </Button>
         ))}
       </div>
-      <Button className="w-full max-w-xs h-14 mt-4" disabled={pin.length < 4 || busy} onClick={entrar}><LogIn /> Entrar</Button>
+      <Button className="w-full max-w-xs h-14 mt-4" disabled={!pinIngresoValido(pin) || busy} onClick={entrar}><LogIn /> Entrar</Button>
       <div className="grid grid-cols-2 gap-3 w-full max-w-xs mt-3">
-        <Button variant="outline" disabled={pin.length < 4 || busy} onClick={() => turno("entrada")}>Registrar entrada</Button>
-        <Button variant="outline" disabled={pin.length < 4 || busy} onClick={() => turno("salida")}>Registrar salida</Button>
+        <Button variant="outline" disabled={!pinIngresoValido(pin) || busy} onClick={() => turno("entrada")}>Registrar entrada</Button>
+        <Button variant="outline" disabled={!pinIngresoValido(pin) || busy} onClick={() => turno("salida")}>Registrar salida</Button>
       </div>
     </main>
   );

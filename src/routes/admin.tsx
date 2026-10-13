@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Corte } from "@/components/corte";
 import { CATEGORIAS, PRODUCTOS, horaMty, hoyMonterrey, mxn } from "@/lib/catalogo";
 import { ETIQUETA_ROL, PinGate, SesionBar, useRolPermisos, useSesion, type Rol } from "@/lib/sesion";
+import { pinNuevoValido } from "@/lib/pin";
 import { GRUPOS_PERMISOS, ROLES_CONFIGURABLES, bitacoraCsv } from "@/lib/permisos";
 import { cn } from "@/lib/utils";
 
@@ -30,11 +31,11 @@ export const Route = createFileRoute("/admin")({
 
 /** Calls an admin database function with the signed-in admin's PIN. */
 function useAdminRpc() {
-  const { pin } = useSesion();
+  const { token } = useSesion();
   const qc = useQueryClient();
   return async (fn: string, args: Record<string, unknown>, ok: string) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.rpc(fn as any, { p_admin_pin: pin, ...args } as any);
+    const { error } = await supabase.rpc(fn as any, { p_admin_pin: token, ...args } as any);
     if (error) { toast.error(error.message); return false; }
     toast.success(ok);
     qc.invalidateQueries();
@@ -264,7 +265,7 @@ function Empleados() {
   const [pins, setPins] = useState<Record<string, string>>({});
   const q = useQuery({
     queryKey: ["empleados"],
-    queryFn: async () => (await supabase.from("empleados").select("id,nombre,rol,activo").order("nombre")).data ?? [],
+    queryFn: async () => (await supabase.from("empleados").select("id,nombre,rol,activo,pin_actualizado").order("nombre")).data ?? [],
   });
   const selRol = (v: Rol, on: (r: Rol) => void) => (
     <select value={v} onChange={(e) => on(e.target.value as Rol)} className="h-11 md:h-9 rounded-md border bg-background px-2 text-base md:text-sm">
@@ -276,8 +277,8 @@ function Empleados() {
       <div className="flex flex-wrap gap-2 mb-4">
         <Input className="flex-1 min-w-40" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} placeholder="Nombre" />
         {selRol(nuevo.rol, (rol) => setNuevo({ ...nuevo, rol }))}
-        <Input className="w-28" inputMode="numeric" maxLength={6} value={nuevo.pin} onChange={(e) => setNuevo({ ...nuevo, pin: e.target.value.replace(/\D/g, "") })} placeholder="PIN" />
-        <Button disabled={!nuevo.nombre.trim() || nuevo.pin.length < 4} onClick={async () => {
+        <Input className="w-28" inputMode="numeric" maxLength={6} value={nuevo.pin} onChange={(e) => setNuevo({ ...nuevo, pin: e.target.value.replace(/\D/g, "") })} placeholder="PIN de 6 dígitos" />
+        <Button disabled={!nuevo.nombre.trim() || !pinNuevoValido(nuevo.pin)} onClick={async () => {
           if (await rpc("admin_guardar_empleado", { p_id: null, p_nombre: nuevo.nombre, p_rol: nuevo.rol, p_pin: nuevo.pin, p_activo: true }, "Empleado agregado")) setNuevo({ nombre: "", rol: "mesero", pin: "" });
         }}><Plus /> Agregar</Button>
       </div>
@@ -288,8 +289,9 @@ function Empleados() {
           <div key={e.id} className={cn("flex flex-wrap items-center gap-2 py-2 border-t", !e.activo && "opacity-50")}>
             <span className="flex-1 min-w-32 font-semibold">{e.nombre}</span>
             {selRol(e.rol as Rol, (rol) => guardar({ rol }, "Rol actualizado"))}
-            <Input className="w-28" inputMode="numeric" maxLength={6} value={pins[e.id] ?? ""} onChange={(ev) => setPins((s) => ({ ...s, [e.id]: ev.target.value.replace(/\D/g, "") }))} placeholder="Nuevo PIN" />
-            <Button size="sm" disabled={(pins[e.id] ?? "").length < 4} onClick={async () => { if (await guardar({ pin: pins[e.id] ?? "" }, "PIN cambiado")) setPins((s) => ({ ...s, [e.id]: "" })); }}><Save /></Button>
+            {!e.pin_actualizado && <span className="text-xs text-amber-600">PIN anterior: cámbialo a 6 dígitos</span>}
+            <Input className="w-28" inputMode="numeric" maxLength={6} value={pins[e.id] ?? ""} onChange={(ev) => setPins((s) => ({ ...s, [e.id]: ev.target.value.replace(/\D/g, "") }))} placeholder="Nuevo PIN (6)" />
+            <Button size="sm" disabled={!pinNuevoValido(pins[e.id] ?? "")} onClick={async () => { if (await guardar({ pin: pins[e.id] ?? "" }, "PIN cambiado")) setPins((s) => ({ ...s, [e.id]: "" })); }}><Save /></Button>
             <Button size="sm" variant="secondary" onClick={() => guardar({ activo: !e.activo }, e.activo ? "Empleado dado de baja" : "Empleado reactivado")}>{e.activo ? "Dar de baja" : "Reactivar"}</Button>
           </div>
         );

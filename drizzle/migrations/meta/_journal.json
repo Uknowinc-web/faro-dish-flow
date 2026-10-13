@@ -43,6 +43,13 @@
       "when": 1791950000000,
       "tag": "0005_comidas_ticket_offline",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791960000000,
+      "tag": "0006_pin_6_y_token_sesion",
+      "breakpoints": true
     }
   ]
 }
