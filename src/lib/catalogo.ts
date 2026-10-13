@@ -1,4 +1,5 @@
-export type Estacion = "cocina" | "barra";
+/** "cocina": comida que se prepara y aparece en Cocina. "bebida": solo se cobra en Caja. */
+export type Estacion = "cocina" | "bebida";
 export type Opcion = { id: string; nombre: string; extra: number };
 export type GrupoOpciones = { id: string; nombre: string; tipo: "uno" | "varios"; opciones: Opcion[]; requerido?: boolean };
 export type Producto = {
@@ -53,11 +54,11 @@ export const PRODUCTOS: Producto[] = [
   platillo("torta", "Torta", "Tortas", 130),
   fijo("hamburguesa", "Hamburguesa", "Tortas", 125),
   fijo("quesagloria", "Quesagloria", "Postres y Bebidas", 100),
-  fijo("agua-natural", "Agua natural", "Postres y Bebidas", 15, "barra"),
-  fijo("agua-sabor", "Agua de sabor 1 L", "Postres y Bebidas", 45, "barra"),
-  fijo("horchata", "Agua de horchata y cebada 1 L", "Postres y Bebidas", 50, "barra"),
-  fijo("topo-chico", "Topo Chico", "Postres y Bebidas", 35, "barra"),
-  fijo("toni-col", "ToniCol", "Postres y Bebidas", 55, "barra"),
+  fijo("agua-natural", "Agua natural", "Postres y Bebidas", 15, "bebida"),
+  fijo("agua-sabor", "Agua de sabor 1 L", "Postres y Bebidas", 45, "bebida"),
+  fijo("horchata", "Agua de horchata y cebada 1 L", "Postres y Bebidas", 50, "bebida"),
+  fijo("topo-chico", "Topo Chico", "Postres y Bebidas", 35, "bebida"),
+  fijo("toni-col", "ToniCol", "Postres y Bebidas", 55, "bebida"),
 ];
 
 /** Modifiers for a mixeable product: main meat (tripa surcharge per product), extra meats +10 each, cheese only on tacos. */

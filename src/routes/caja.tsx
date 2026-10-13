@@ -13,6 +13,7 @@ import { horaMty, mxn } from "@/lib/catalogo";
 import { resumenPago } from "@/lib/pagos";
 import { Corte } from "@/components/corte";
 import { PinGate, SesionBar, useSesion } from "@/lib/sesion";
+import { useConexion } from "@/hooks/use-conexion";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/caja")({
@@ -55,6 +56,7 @@ function Caja() {
 
 function Mesas() {
   const { puede, pin } = useSesion();
+  const conectado = useConexion();
   const [sel, setSel] = useState<string | null>(null);
   const [nueva, setNueva] = useState("");
   const mesas = useQuery({
@@ -104,7 +106,7 @@ function Mesas() {
         </div>
         {puede("caja.agregar_mesa") && <div className="flex gap-2 mt-4 max-w-sm">
           <Input value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Nueva mesa (ej. Terraza 1)" />
-          <Button onClick={agregarMesa}><Plus /> Agregar</Button>
+          <Button onClick={agregarMesa} disabled={!conectado}><Plus /> Agregar</Button>
         </div>}
       </div>
       <aside id="cuenta-caja" className="scroll-mt-4 rounded-2xl border bg-card p-5 h-fit lg:sticky lg:top-4">
@@ -117,6 +119,7 @@ function Mesas() {
 
 function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: string; estado: string; onDone: () => void }) {
   const { puede, pin } = useSesion();
+  const conectado = useConexion();
   const [anular, setAnular] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -168,9 +171,10 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
         <span className="text-muted-foreground">Total</span>
         <span className="font-display text-5xl text-primary">{mxn(total)}</span>
       </div>
+      {!conectado && <p className="mt-4 text-sm text-warning">Sin conexión: cobrar, marcar por cobrar y anular requieren internet.</p>}
       <div className="mt-4 space-y-3">
         {estado !== "por_cobrar" && puede("caja.por_cobrar") && (
-          <Button variant="secondary" className="w-full h-12" disabled={busy} onClick={() => rpc("caja_solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
+          <Button variant="secondary" className="w-full h-12" disabled={busy || !conectado} onClick={() => rpc("caja_solicitar_cuenta", { p_cuenta: cuentaId }, "Mesa marcada por cobrar")}><Receipt /> Marcar por cobrar</Button>
         )}
         {puede("caja.cobrar") && <div className="rounded-xl border p-3 space-y-3">
           <div className="flex items-center gap-2">
@@ -200,7 +204,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
                 {r.cambio > 0 && <p className="text-sm text-info">Cambio: {mxn(r.cambio)}</p>}
                 <Button
                   className="w-full h-14"
-                  disabled={busy || !r.valido}
+                  disabled={busy || !r.valido || !conectado}
                   onClick={async () => {
                     setBusy(true);
                     const pagos = [
@@ -229,7 +233,7 @@ function Cuenta({ cuentaId, mesa, estado, onDone }: { cuentaId: string; mesa: st
           <p className="text-sm text-muted-foreground">La cuenta no se contará en ventas. Escribe el motivo.</p>
           <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo de anulación" />
           <DialogFooter>
-            <Button variant="destructive" disabled={!motivo.trim() || busy} onClick={async () => { await rpc("caja_anular_cuenta", { p_cuenta: cuentaId, p_motivo: motivo }, "Cuenta anulada"); setAnular(false); setMotivo(""); }}>Confirmar anulación</Button>
+            <Button variant="destructive" disabled={!motivo.trim() || busy || !conectado} onClick={async () => { await rpc("caja_anular_cuenta", { p_cuenta: cuentaId, p_motivo: motivo }, "Cuenta anulada"); setAnular(false); setMotivo(""); }}>Confirmar anulación</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

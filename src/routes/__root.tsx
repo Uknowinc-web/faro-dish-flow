@@ -13,6 +13,8 @@ import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { iniciarSincronizacion } from "../lib/cola";
+import { EstadoConexion } from "@/components/estado-conexion";
 
 function NotFoundComponent() {
   return (
@@ -121,8 +123,12 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  // Envía en segundo plano las operaciones guardadas sin conexión.
+  useEffect(() => iniciarSincronizacion(), []);
+
   return (
     <QueryClientProvider client={queryClient}>
+      <EstadoConexion />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster position="top-center" />

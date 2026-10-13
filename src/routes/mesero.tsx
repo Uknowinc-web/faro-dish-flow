@@ -10,6 +10,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { CARNES, CATEGORIAS, NOTAS_RAPIDAS, modsMixta, precioUnitario, horaMty, type Carne, type ModSeleccionado, type Producto } from "@/lib/catalogo";
 import { cn } from "@/lib/utils";
 import { PinGate, SesionBar, useBitacora, useSesion } from "@/lib/sesion";
+import { ejecutar } from "@/lib/cola";
+import { useCola } from "@/hooks/use-conexion";
 import { useCatalogo } from "@/hooks/use-catalogo";
 
 export const Route = createFileRoute("/mesero")({
@@ -44,6 +46,7 @@ function Mesero() {
   const { empleado } = useSesion();
   const log = useBitacora();
   const catalogo = useCatalogo();
+  const cola = useCola();
   const [mesa, setMesa] = useState<{ id: string; nombre: string } | null>(null);
   const [cat, setCat] = useState<string>(CATEGORIAS[0]);
   const [lineas, setLineas] = useState<Linea[]>([]);
@@ -85,15 +88,27 @@ function Mesero() {
       notas: l.notas,
       estacion: l.producto.estacion,
     }));
-    const { error } = await supabase.rpc("enviar_comanda", { p_mesa: mesa.id, p_token: token, p_items: items, p_mesero: empleado.nombre });
+    const resumen = lineas.map((l) => `${l.cantidad} ${l.producto.nombre}`).join(", ");
+    // Sin conexión la comanda queda guardada en el dispositivo y se envía al reconectar (mismo token: no se duplica).
+    const r = await ejecutar("enviar_comanda", { p_mesa: mesa.id, p_token: token, p_items: items, p_mesero: empleado.nombre }, {
+      etiqueta: `Comanda · ${mesa.nombre}`,
+      resumen,
+    });
     setEnviando(false);
-    if (error) { toast.error("No se pudo enviar: " + error.message); return; }
-    toast.success(`Comanda enviada · ${mesa.nombre}`);
-    log("Comanda enviada", `${mesa.nombre}: ${lineas.map((l) => `${l.cantidad} ${l.producto.nombre}`).join(", ")}`);
+    if (r.estado === "error") { toast.error("No se pudo enviar: " + r.mensaje); return; }
+    if (r.estado === "ok") {
+      toast.success(`Comanda enviada · ${mesa.nombre}`);
+      log("Comanda enviada", `${mesa.nombre}: ${resumen}`);
+    } else {
+      toast.info(`Sin conexión: ${mesa.nombre} guardada y se enviará al reconectar`);
+    }
     setLineas([]);
     setToken(crypto.randomUUID());
     setMesa(null);
   }
+
+  // Comandas de este mesero que aún no llegan al servidor.
+  const pendientesEnvio = cola.filter((o) => o.fn === "enviar_comanda" && o.args["p_mesero"] === empleado.nombre);
 
   if (!mesa) {
     return (
@@ -121,7 +136,17 @@ function Mesero() {
           </div>
         ) : (
           <div className="grid gap-3 p-4 md:grid-cols-2">
-            {ordenes.data?.length === 0 && <p className="text-muted-foreground text-center py-8 md:col-span-2">Sin órdenes recientes.</p>}
+            {pendientesEnvio.map((o) => (
+              <div key={o.id} className="rounded-xl border border-dashed bg-card p-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-display text-2xl">{o.etiqueta.replace("Comanda · ", "")}</span>
+                  <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", o.error ? "bg-destructive/20 text-destructive" : "bg-info/20 text-info")}>{o.error ? "No enviada" : "Sin conexión"}</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">{o.resumen}</p>
+                {o.error && <p className="text-xs text-destructive mt-1">{o.error}</p>}
+              </div>
+            ))}
+            {ordenes.data?.length === 0 && pendientesEnvio.length === 0 && <p className="text-muted-foreground text-center py-8 md:col-span-2">Sin órdenes recientes.</p>}
             {ordenes.data?.map((o) => (
               <div key={o.id} className="rounded-xl border bg-card p-4">
                 <div className="flex justify-between items-center">
@@ -159,7 +184,7 @@ function Mesero() {
           <button key={p.id} disabled={p.agotado} onClick={() => setEditar(p)} className="rounded-xl border bg-card min-h-20 p-3 text-left active:scale-95 transition disabled:opacity-40">
             <span className="font-semibold">{p.nombre}</span>
             {p.agotado && <span className="block text-xs text-destructive">Agotado</span>}
-            {p.estacion === "barra" && <span className="block text-xs text-info">Barra</span>}
+            {p.estacion === "bebida" && <span className="block text-xs text-info">Bebida</span>}
           </button>
         ))}
       </div>
