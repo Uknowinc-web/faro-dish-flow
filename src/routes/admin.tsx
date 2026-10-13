@@ -80,6 +80,7 @@ const card = "rounded-2xl border bg-card p-5";
 
 function Resumen() {
   const rpc = useAdminRpc();
+  const { puede } = useSesion();
   const [fondo, setFondo] = useState("");
   const fecha = hoyMonterrey();
   const vm = useQuery({
@@ -102,11 +103,11 @@ function Resumen() {
 
   return (
     <div className="space-y-6 mt-4">
-      <div className={cn(card, "flex flex-wrap items-center gap-3")}>
+      {puede("admin.fondo") && <div className={cn(card, "flex flex-wrap items-center gap-3")}>
         <span className="text-sm text-muted-foreground">Fondo inicial de caja de hoy</span>
         <Input type="number" min="0" className="w-40" value={fondo} onChange={(e) => setFondo(e.target.value)} placeholder="$0" />
         <Button disabled={fondo === ""} onClick={async () => { if (await rpc("admin_fondo_caja", { p_fecha: fecha, p_monto: Number(fondo) }, "Fondo guardado")) setFondo(""); }}><Save /> Guardar fondo</Button>
-      </div>
+      </div>}
       <Corte />
       <div className={card}>
         <h3 className="font-display text-3xl mb-3">Ventas por mesero (hoy)</h3>
